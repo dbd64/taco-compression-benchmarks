@@ -927,10 +927,10 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
   }
 }
 
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_dense, Kind::DENSE)->DenseRange(1,1000,1);
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_lz77, Kind::LZ77)->DenseRange(1,1000,1);
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_sparse, Kind::SPARSE)->DenseRange(1,1000,1);
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_rle, Kind::RLE)->DenseRange(1,1000,1);
+TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_dense, Kind::DENSE)->DenseRange(1,5,1);
+TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_lz77, Kind::LZ77)->DenseRange(1,5,1);
+TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_sparse, Kind::SPARSE)->DenseRange(1,5,1);
+TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_rle, Kind::RLE)->DenseRange(1,5,1);
 
 void animation_alpha_blending(){
   Kernel kernel;

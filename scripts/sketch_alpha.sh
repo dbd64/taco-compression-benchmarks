@@ -8,5 +8,7 @@
 set -u
 
 out=/data/scratch/danielbd/taco-compression-benchmarks/out/sketch_alpha/
+validation=/data/scratch/danielbd/taco-compression-benchmarks/out/sketch_alpha/validation/
 mkdir -p "$out"
-LANKA=ON IMAGE_FOLDER="/data/scratch/danielbd/python_png_analysis/sketches/nodelta/" make taco-bench BENCHES="sketch_alpha"
+mkdir -p "$validation"
+LANKA=ON IMAGE_FOLDER="/data/scratch/danielbd/python_png_analysis/sketches/nodelta/" VALIDATION_OUTPUT_PATH="$validation" make taco-bench BENCHES="sketch_alpha"
