@@ -1,0 +1,8 @@
+*__pycache__*
+*CMakeFiles/
+*.idea/*
+.DS_Store
+*.swo
+*.swp
+data/FROSTT/*
+venv/*
