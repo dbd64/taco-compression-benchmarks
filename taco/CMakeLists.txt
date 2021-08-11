@@ -10,9 +10,9 @@ include_directories(taco taco/include benchmark/include taco/src)
 
 file(GLOB TEST_SOURCES *.cpp *.h)
 
-set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -std=c++17")
 
-add_executable(taco-bench ${TEST_SOURCES} bench.h)
+add_executable(taco-bench ${TEST_SOURCES})
 target_link_libraries(taco-bench benchmark::benchmark)
 target_link_libraries(taco-bench taco)
 # Only link stdc++fs on lanka. Mac's don't need this set.

@@ -22,8 +22,10 @@ endif
 
 ifeq ("$(LANKA)","ON")
 CMD := LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) numactl -C 0,2,4,6,8,10,24,26,28,30,32,34 -m 0 taco/build/taco-bench $(BENCHFLAGS)
+MAKE_CMD := $(MAKE) taco-bench -j48
 else
 CMD := LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS)
+MAKE_CMD := $(MAKE) taco-bench -j16
 endif
 
 export TACO_TENSOR_PATH = data/
@@ -50,7 +52,7 @@ ifeq ($(VALIDATION_OUTPUT_PATH),)
 endif
 
 taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/googletest
-	mkdir -p taco/build/ && cd taco/build/ && cmake -DLANKA=$(LANKA) ../ && $(MAKE) taco-bench 
+	mkdir -p taco/build/ && cd taco/build/ && cmake -DLANKA=$(LANKA) ../ && $(MAKE_CMD)
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
