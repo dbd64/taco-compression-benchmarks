@@ -1,6 +1,6 @@
-[submodule "taco/taco"]
-	path = taco/taco
-	url = ../../dbd64/taco.git
 [submodule "taco/benchmark"]
 	path = taco/benchmark
-	url = ../../google/benchmark.git
+	url = https://github.com/google/benchmark.git
+[submodule "taco/taco"]
+	path = taco/taco
+	url = https://github.com/dbd64/taco.git
