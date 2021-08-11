@@ -2,6 +2,7 @@
 #SBATCH -N 1
 #SBATCH --mem 120000
 #SBATCH -p lanka-v3
+#SBATCH --nodelist=lanka26
 #SBATCH --exclusive
 
 set -u
