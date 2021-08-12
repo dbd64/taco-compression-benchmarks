@@ -772,10 +772,13 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
   Tensor<uint8_t> out("out", {1111*1111}, Format{Dense});
   const IndexVar i("i"), j("j");
   IndexStmt indexStmt = (out(i) = plus_(0.5*dense0(i), 0.5*dense1(i)));
-  out.evaluate();
+  out.compile();
+  out.assemble();
+  out.compute();
 
   auto valsArr = out.getStorage().getValues();
   std::vector<uint8_t> vals_expected((uint8_t*)valsArr.getData(),(uint8_t*)valsArr.getData()+valsArr.getSize());
+  saveTensor(vals_expected, getValidationOutputPath() + "expected_" + std::to_string(index) + ".png");
 
   auto res0 = read_png(index, kind);
   auto res1 = read_png(index+10000, kind);
@@ -804,13 +807,25 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
 
       k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
 
-      auto arr = denseResult.getStorage().getValues();
-      std::vector<uint8_t> vals_actual((uint8_t*)arr.getData(),(uint8_t*)arr.getData()+arr.getSize());
-
+      // auto arr = outStorage.getValues();
+      // std::vector<uint8_t> vals_actual((uint8_t*)arr.getData(),(uint8_t*)arr.getData()+arr.getSize());
+      std::vector<uint8_t> vals_actual(a0->vals,a0->vals+(1111*1111));
 
       if (vals_expected != vals_actual){
-        std::cerr << "[VALIDATION_ERROR]: bench_sketch_alpha, " << kind << ", " << index << std::endl;
-        saveTensor(vals_actual, getValidationOutputPath() + "dense_out.png");
+        // std::cerr << "[VALIDATION_ERROR]: bench_sketch_alpha, " << kind << ", " << index << ": ";
+        // int error_cnt = 0;
+        // for (int i=0; i<vals_expected.size(); i++){
+        //   if (vals_expected[i] != vals_actual[i]){
+        //     std::cerr << i << "(" << (unsigned)vals_expected[i] << "," << (unsigned)vals_actual[i] <<  ")" << ", ";
+        //     error_cnt++;
+        //   }
+        //   if (error_cnt > 10){
+        //     std::cerr << ".....";
+        //     break;
+        //   }
+        // }
+        // std::cerr << "\b\b" << std::endl;
+        saveTensor(vals_actual, getValidationOutputPath() + "dense_" + std::to_string(index) + "_out.png");
       }
       break;
     }
@@ -845,7 +860,7 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
 
       if (vals_expected != vals_actual){
         std::cerr << "[VALIDATION_ERROR]: bench_sketch_alpha, " << kind << ", " << index << std::endl;
-        saveTensor(vals_actual, getValidationOutputPath() + "sparse_out.png");
+        saveTensor(vals_actual, getValidationOutputPath() + "sparse_" + std::to_string(index) + "_out.png");
       }
 
       break;
@@ -881,8 +896,7 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
 
       if (vals_expected != vals_actual){
         std::cerr << "[VALIDATION_ERROR]: bench_sketch_alpha, " << kind << ", " << index << std::endl;
-        saveTensor(vals_actual, getValidationOutputPath() + "rle_out.png");
-        saveTensor(vals_expected, getValidationOutputPath() + "expected.png");
+        saveTensor(vals_actual, getValidationOutputPath() + "rle_" + std::to_string(index) + "_out.png");
       }
 
       break;
@@ -918,7 +932,7 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
         //   }
         // }
         std::cout << std::endl;
-        saveTensor(vals_actual, getValidationOutputPath() + "lz77_out.png");
+        saveTensor(vals_actual, getValidationOutputPath() + "lz77_" + std::to_string(index) + "_out.png");
       }
       break;
     }
@@ -927,8 +941,8 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
   }
 }
 
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_dense, Kind::DENSE)->DenseRange(1,5,1);
-TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_lz77, Kind::LZ77)->DenseRange(1,5,1);
+// TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_dense, Kind::DENSE)->DenseRange(1,5,1);
+// TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_lz77, Kind::LZ77)->DenseRange(1,5,1);
 TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_sparse, Kind::SPARSE)->DenseRange(1,5,1);
 TACO_BENCH_ARGS(bench_sketch_alpha, sketch_alpha_rle, Kind::RLE)->DenseRange(1,5,1);
 
