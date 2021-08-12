@@ -951,7 +951,7 @@ void sketch_alpha_blending(){
 
   std::cout << "index,isDense,total_bytes,mean,stddev,median" << std::endl;
 
-  for (int index=1; index<1000; index++){
+  for (int index=1; index<5; index++){
     Tensor<uint8_t> denseResult("denseResult", {1111*1111}, Format{Dense});
     {
       Kind kind = Kind::DENSE;
@@ -964,23 +964,26 @@ void sketch_alpha_blending(){
       denseResult.compile();
       denseResult.assemble();
 
-      shared_ptr<ir::Module> module = denseResult.getModule();
-      void* compute  = module->getFuncPtr("compute");
-      void* assemble = module->getFuncPtr("assemble");
-      void* evaluate = module->getFuncPtr("evaluate");
+      Kernel k = getKernel(indexStmt, denseResult);
 
-      Kernel k(indexStmt, module, evaluate, assemble, compute);
       auto outStorage = denseResult.getStorage();
       auto d0Storage = d0.getStorage();
       auto d1Storage = d1.getStorage();
+      taco_tensor_t* a0 = denseResult.getStorage();
+      taco_tensor_t* a1 = d0.getStorage();
+      taco_tensor_t* a2 = d1.getStorage();
       std::cout << index << "," << "DENSE" << "," << res0.second + res1.second  << ",";
       TOOL_BENCHMARK_REPEAT(
-              k.compute({outStorage, d0Storage, d1Storage}),
+              k.compute(a0,a1,a2),
               "Compute",
-              100);
-//      auto vals = denseResult.getStorage().getValues();
-//      std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-//      saveTensor(valsVec, "/Users/danieldonenfeld/Developer/taco/apps/png_reader/dense_out.png");
+              1000);
+
+      if (auto valPath = getValidationOutputPath(); valPath != ""){
+        k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
+        auto vals = outStorage.getValues();
+        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+        saveTensor(valsVec, valPath + "dense_" + std::to_string(index) + ".png");
+      }
     }
     {
       Kind kind = Kind::LZ77;
@@ -1008,11 +1011,13 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              100);
+              1000);
 
-//      int* pos = (int*)(a0->indices[0][0]);
-//      std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
-//      saveTensor(unpackLZ77_bytes(valsVec), "/Users/danieldonenfeld/Developer/taco/apps/png_reader/lz77_out.png");
+      if (auto valPath = getValidationOutputPath(); valPath != ""){
+        int* pos = (int*)(a0->indices[0][0]);
+        std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
+        saveTensor(unpackLZ77_bytes(valsVec), valPath + "lz77_" + std::to_string(index) + ".png");
+      }
     }
     {
       Kind kind = Kind::SPARSE;
@@ -1026,30 +1031,34 @@ void sketch_alpha_blending(){
       expected.compile();
       expected.assemble();
 
-      shared_ptr<ir::Module> module = expected.getModule();
-      void* compute  = module->getFuncPtr("compute");
-      void* assemble = module->getFuncPtr("assemble");
-      void* evaluate = module->getFuncPtr("evaluate");
-
-      Kernel k(indexStmt, module, evaluate, assemble, compute);
-      taco_tensor_t* a0 = expected.getStorage();
+      Kernel k = getKernel(indexStmt, expected);
+      auto& es = expected.getStorage();
+      taco_tensor_t* a0 = es;
       taco_tensor_t* a1 = d0.getStorage();
       taco_tensor_t* a2 = d1.getStorage();
       std::cout << index << "," << "SPARSE" << "," << res0.second + res1.second  << ",";
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              100);
+              500);
 
-//      k.unpack(1, {a0}, {expected.getStorage()});
-//
-//      Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
-//      denseOutput(i) = expected(i);
-//      denseOutput.evaluate();
-//
-//      auto vals = denseOutput.getStorage().getValues();
-//      std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-//      saveTensor(valsVec, "/Users/danieldonenfeld/Developer/taco/apps/png_reader/sparse_out.png");
+      if (auto valPath = getValidationOutputPath(); valPath != ""){
+        k.unpack(1, {a0}, {es});
+        expected.setStorage(es);
+        std::cout << "after unpack \n";
+
+        Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
+        denseOutput(i) = expected(i);
+        denseOutput.setAssembleWhileCompute(true);
+        denseOutput.compile();
+        std::cout << "before compute \n";
+        denseOutput.compute();
+        std::cout << "after compute \n";
+
+        auto vals = denseOutput.getStorage().getValues();
+        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+        saveTensor(valsVec, valPath + "sparse_" + std::to_string(index) + ".png");
+      }
     }
     {
       Kind kind = Kind::RLE;
@@ -1077,20 +1086,21 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              100);
-//
-//      k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});
-//
-//      Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
-//      denseOutput(i) = copy(expected(i));
-//      denseOutput.compile();
-//      denseOutput.assemble();
-//      denseOutput.compute();
-//
-//      auto vals = denseOutput.getStorage().getValues();
-//      std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-//      saveTensor(valsVec, "/Users/danieldonenfeld/Developer/taco/apps/png_reader/rle_out.png");
+              1000);
 
+      if (auto valPath = getValidationOutputPath(); valPath != ""){
+        k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});
+
+        Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
+        denseOutput(i) = copy(expected(i));
+        denseOutput.compile();
+        denseOutput.assemble();
+        denseOutput.compute();
+
+        auto vals = denseOutput.getStorage().getValues();
+        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+        saveTensor(valsVec, valPath + "rle_" + std::to_string(index) + ".png");
+      }
     }
 
   }
