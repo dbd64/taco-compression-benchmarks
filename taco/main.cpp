@@ -9,8 +9,10 @@
 // BENCHMARK_MAIN();
 
 void sketch_alpha_blending();
+void brighten_bench();
 
 int main(){
-    sketch_alpha_blending();
+    // sketch_alpha_blending();
+    brighten_bench();
     return 0;
 }

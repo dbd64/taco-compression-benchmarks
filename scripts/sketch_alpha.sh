@@ -4,7 +4,6 @@
 #SBATCH -p lanka-v3
 #SBATCH --nodelist=lanka26
 #SBATCH --exclusive
-#SBATCH -t 2:0
 
 set -u
 

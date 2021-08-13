@@ -22,54 +22,10 @@ extern "C" {
 #include "lz_sum_kernel.h"
 }
 
+#include "png_reader.h"
+
 using namespace taco;
 
-#define TACO_TIME_REPEAT(CODE, REPEAT, RES, COLD) {  \
-    taco::util::Timer timer;                         \
-    for(int i=0; i<REPEAT; i++) {                    \
-      if(COLD)                                       \
-        timer.clear_cache();                         \
-      timer.start();                                 \
-      CODE;                                          \
-      timer.stop();                                  \
-    }                                                \
-    RES = timer.getResult();                         \
-  }
-
-#define TOOL_BENCHMARK_REPEAT(CODE, NAME, REPEAT) {              \
-    if (time) {                                                  \
-      TACO_TIME_REPEAT(CODE,REPEAT,timevalue,false);             \
-      cout << timevalue << endl; \
-    }                                                            \
-    else {                                                       \
-      CODE;                                                      \
-    }                                                            \
-}
-
-#define TOOL_BENCHMARK_TIMER(CODE,NAME,TIMER) {                  \
-    if (time) {                                                  \
-      taco::util::Timer timer;                                   \
-      timer.start();                                             \
-      CODE;                                                      \
-      timer.stop();                                              \
-      taco::util::TimeResults result = timer.getResult();        \
-      cout << NAME << " " << result << " ms" << endl;            \
-      TIMER=result;                                              \
-    }                                                            \
-    else {                                                       \
-      CODE;                                                      \
-    }                                                            \
-}
-
-template <typename T>
-std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
-  if ( !v.empty() ) {
-    out << '[';
-    std::copy (v.begin(), v.end(), std::ostream_iterator<T>(out, ", "));
-    out << "\b\b]";
-  }
-  return out;
-}
 
 /*returns 1 if success, 0 if failure ==> nothing done*/
 static unsigned ucvector_resize(ucvector* p, size_t size) {
@@ -168,7 +124,7 @@ unsigned decode(std::vector<unsigned char>& out, std::vector<unsigned char>& com
 
 
 unsigned decode(std::vector<unsigned char>& out, std::vector<unsigned char>& c_out, std::vector<int>& pos, unsigned& w, unsigned& h,
-                const std::vector<unsigned char>& in, LodePNGColorType colortype = LCT_GREY, unsigned bitdepth = 8) {
+                const std::vector<unsigned char>& in, LodePNGColorType colortype, unsigned bitdepth) {
   return decode(out, c_out, pos, w, h, in.empty() ? 0 : &in[0], (unsigned)in.size(), colortype, bitdepth);
 }
 
@@ -439,13 +395,6 @@ string toStr(int i){
   stringStream << i;
   return stringStream.str();
 }
-
-enum class Kind {
-      DENSE,
-      SPARSE,
-      RLE,
-      LZ77
-};
 
 std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind) {
   auto img_folder = getEnvVar("IMAGE_FOLDER");
@@ -949,9 +898,11 @@ void sketch_alpha_blending(){
   bool time = true;
   taco::util::TimeResults timevalue{};
 
+  int repetitions = getValidationOutputPath() == "" ? 1000 : 1; 
+
   std::cout << "index,isDense,total_bytes,mean,stddev,median" << std::endl;
 
-  for (int index=1; index<5; index++){
+  for (int index=968; index<=1000; index++){
     Tensor<uint8_t> denseResult("denseResult", {1111*1111}, Format{Dense});
     {
       Kind kind = Kind::DENSE;
@@ -976,7 +927,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              1000);
+              repetitions);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
@@ -1011,7 +962,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              1000);
+              repetitions);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         int* pos = (int*)(a0->indices[0][0]);
@@ -1040,7 +991,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              500);
+              repetitions);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(1, {a0}, {es});
@@ -1086,7 +1037,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              1000);
+              repetitions);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});
