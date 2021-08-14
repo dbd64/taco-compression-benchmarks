@@ -6525,9 +6525,9 @@ static void push_distlen(ucvector* compressed, const unsigned distance,  const u
                          custom_context_s* custom_context){
 //  std::cout << "[push_distlen] " << distance << ", " << length << " (" << compressed->size << ") " << (length > distance && distance!=1) << std::endl;
 
-  if (distance==0){
-    std::cout << "[push_distlen] distance 0! run " << length << std::endl;
-  }
+  // if (distance==0){
+  //   std::cout << "[push_distlen] distance 0! run " << length << std::endl;
+  // }
 
   auto checkMem = [&]() { return memcmp(compressed->data + compressed->size - distance, compressed->data + compressed->size - (2*distance + 2 + 4), distance) == 0; };
 

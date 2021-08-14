@@ -165,16 +165,6 @@ std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes){
   return out;
 }
 
-template <typename T>
-union GetBytes {
-    T value;
-    uint8_t bytes[sizeof(T)];
-};
-
-using Repeat = std::pair<uint16_t, uint16_t>;
-template <class T>
-using TempValue = std::variant<T,Repeat>;
-
 std::vector<TempValue<uint8_t>> unpackLZ77_vector(std::vector<uint8_t> bytes){
   // 0 XXXXXXX XXXXXXXX     -> read X number of bytes
   // 1 XXXXXXX XXXXXXXX Y Y -> X is the run length, Y is the distance
@@ -249,72 +239,6 @@ Func getPlusRleFunc(){
   return plus_;
 }
 
-// helper type for the visitor #4
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-// explicit deduction guide (not needed as of C++20)
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-template <typename T>
-T get_value(const std::vector<uint8_t>& bytes, size_t pos){
-  T* ptr = (T*) &bytes[pos];
-  return *ptr;
-}
-
-template <typename T>
-void set_value(std::vector<uint8_t>& bytes, size_t pos, T val){
-  GetBytes<T> gb{val};
-  for (unsigned long i_=0; i_<sizeof(T); i_++){
-    bytes[pos+i_] = gb.bytes[i_];
-  }
-}
-
-template <typename T>
-void push_back(T arg, std::vector<uint8_t>& bytes, size_t& curr_count, bool& isValues, bool check = false){
-  GetBytes<T> gb;
-  gb.value = arg;
-
-  uint16_t mask = (uint16_t)0x7FFF;
-  uint16_t count = 0;
-  if (check) {
-    if (isValues && ((count = get_value<uint16_t>(bytes, curr_count)) < mask)) {
-      auto temp_curr_count = curr_count;
-      set_value<uint16_t>(bytes, curr_count, count + 1);
-      push_back<T>(arg, bytes, curr_count, isValues, false);
-      curr_count = temp_curr_count;
-    } else {
-      push_back<uint16_t>(1, bytes, curr_count, isValues, false);
-      auto temp_curr_count = size_t(bytes.empty() ? 0 : bytes.size()-2);
-      push_back<T>(arg, bytes, curr_count, isValues, false);
-      curr_count = temp_curr_count;
-    }
-    isValues = true;
-  } else {
-    for (unsigned long i_=0; i_<sizeof(T); i_++){
-      bytes.push_back(gb.bytes[i_]);
-    }
-    isValues = false;
-    curr_count = 0;
-  }
-}
-
-template <typename T>
-std::vector<uint8_t> packLZ77_bytes(std::vector<TempValue<T>> vals){
-  std::vector<uint8_t> bytes;
-  size_t curr_count = 0;
-  bool isValues = false;
-  const auto runMask = (uint16_t)~0x7FFF;
-  for (auto& val : vals){
-    std::visit(overloaded {
-            [&](T arg) { push_back(arg, bytes, curr_count, isValues, true); },
-            [&](std::pair<uint16_t, uint16_t> arg) {
-                push_back<uint16_t>(arg.second | runMask, bytes, curr_count, isValues);
-                push_back<uint16_t>(arg.first, bytes, curr_count, isValues);
-            }
-    }, val);
-  }
-  return bytes;
-}
-
 std::vector<TempValue<uint8_t>> compress(std::vector<uint8_t> vals){
   // Do RLE compression on vals
   std::vector<TempValue<uint8_t>> out;
@@ -364,18 +288,6 @@ Index makeLZ77ImgIndex(const std::vector<int>& rowptr) {
   return Index({Dense, LZ77},
                {ModeIndex({makeArray({(int)rowptr.size()})}),
                 ModeIndex({makeArray(rowptr)})});
-}
-
-template<typename T>
-TensorBase makeLZ77(const std::string& name, const std::vector<int>& dimensions,
-                    const std::vector<int>& pos, const std::vector<uint8_t>& vals) {
-  taco_uassert(dimensions.size() == 1);
-  Tensor<T> tensor(name, dimensions, {LZ77});
-  auto storage = tensor.getStorage();
-  storage.setIndex(makeLZ77Index(pos));
-  storage.setValues(makeArray(vals));
-  tensor.setStorage(storage);
-  return std::move(tensor);
 }
 
 template<typename T>
