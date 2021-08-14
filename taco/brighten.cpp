@@ -10,19 +10,18 @@
 #include <climits>
 #include <limits>
 
-Index makeDenseIndex(int s0, int s1, int s2, int s3) {
+Index makeDenseIndex(int s0, int s1, int s2) {
   return Index(CSR, {ModeIndex({makeArray({s0})}),
                      ModeIndex({makeArray({s1})}),
-                     ModeIndex({makeArray({s2})}),
-                     ModeIndex({makeArray({s3})})});
+                     ModeIndex({makeArray({s2})})});
 }
 
 template<typename T>
 TensorBase makeDense(const std::string& name, const std::vector<int>& dims,
                    const std::vector<T>& vals) {
-  Tensor<T> tensor(name, dims, Format{Dense, Dense, Dense, Dense});
+  Tensor<T> tensor(name, dims, Format{Dense, Dense, Dense});
   auto storage = tensor.getStorage();
-  storage.setIndex(makeDenseIndex(dims[0], dims[1], dims[2], dims[3]));
+  storage.setIndex(makeDenseIndex(dims[0], dims[1], dims[2]));
   storage.setValues(makeArray(vals));
   tensor.setStorage(storage);
   return std::move(tensor);
@@ -53,23 +52,37 @@ Func getBrightenFunc(uint8_t brightness, bool full){
 
 std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in);
 
-std::pair<Tensor<uint8_t>, size_t> read_rgb_sequence(int start, int end, Kind kind) {
-  auto img_folder = getEnvVar("IMAGE_FOLDER");
-  if (img_folder == "") {
-    img_folder = "/Users/danieldonenfeld/Developer/png_analysis/bs_png/";
-  }
-
-
-  int w = 0;
-  int h = 0;
-  int l = 0;
-  std::vector<uint8_t> vals;
-  for (int i=start; i<=end; i++){
+std::vector<uint8_t> raw_image(std::string filename, int& w, int& h){
     std::vector<unsigned char> png;
     std::vector<unsigned char> image; //the raw pixels
     std::vector<unsigned char> compressed;
     std::vector<int> pos;
     unsigned width = 0, height = 0;
+
+    unsigned error = lodepng::load_file(png, filename);
+    if(!error) error = decode(image, compressed, pos, width, height, png, LCT_RGB);
+
+    if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+    
+    w = (int)width;
+    h = (int)height;
+    return std::move(image);
+}
+
+std::pair<std::vector<Tensor<uint8_t>>, size_t> read_rgb_sequence(int start, int end, Kind kind) {
+  auto img_folder = getEnvVar("IMAGE_FOLDER");
+  if (img_folder == "") {
+    img_folder = "/Users/danieldonenfeld/Developer/png_analysis/bs_png/";
+  }
+
+  std::vector<Tensor<uint8_t>> tensors;
+  tensors.reserve(end - start + 1);
+  size_t total_size = 0;
+
+  int w = 0;
+  int h = 0;
+  int l = 0;
+  for (int i=start; i<=end; i++){
     std::ostringstream stringStream;
     stringStream << img_folder;
     if (i < 10){
@@ -79,77 +92,62 @@ std::pair<Tensor<uint8_t>, size_t> read_rgb_sequence(int start, int end, Kind ki
     }
     stringStream << i << ".png";
     std::string filename = stringStream.str();
+    auto image = raw_image(filename, w, h);
 
-    //load and decode
-    unsigned error = lodepng::load_file(png, filename);
-    // auto state = lodepng::State();
-    // if (!error) lodepng::decode(image, width, height, state, png);
-    if(!error) error = decode(image, compressed, pos, width, height, png, LCT_RGB);
-
-    //if there's an error, display it
-    if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
-    
-    w = (int)width;
-    h = (int)height;
-    l++;
-    vals.insert(vals.end(), image.begin(), image.end());
-  }
-
-  if (kind == Kind::DENSE){
-    return {makeDense("dense_" + std::to_string(start) + "_" + std::to_string(end), {l,h,w,3}, vals), l*w*h*3};
-  } else if (kind == Kind::LZ77){
-    auto packed = encode_lz77(vals);
-    return {makeLZ77<uint8_t>("lz77_" + std::to_string(start) + "_" + std::to_string(end),
-                          {l*h*w*3},
-                          {0, (int)packed.size()}, packed),
-        packed.size()};
-  } else if (kind == Kind::SPARSE){
-    Tensor<uint8_t> t{"sparse_" + std::to_string(start) + "_" + std::to_string(end), {l,h,w,3}, {Dense,Dense,Sparse,Dense}, 255};
-    for (int frame=0; frame<l; frame++){
-      // std::cout << frame << std::endl;
+    if (kind == Kind::DENSE){
+      auto t = makeDense("dense_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, image);
+      total_size += w*h*3;
+      tensors.push_back(t);
+    } else if (kind == Kind::LZ77){
+      auto packed = encode_lz77(image);
+      auto t = makeLZ77<uint8_t>("lz77_" + std::to_string(start) + "_" + std::to_string(end),
+                            {h*w*3},
+                            {0, (int)packed.size()}, packed);
+      tensors.push_back(t);
+      total_size+=packed.size();
+    } else if (kind == Kind::SPARSE){
+      Tensor<uint8_t> t{"sparse_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, {Dense,Sparse,Dense}, 255};
+        for (int row=0; row<h; row++){
+          for (int col=0; col<w; col++){
+            if (image[row*w*3 + col*3 + 0] != 255 ||
+                image[row*w*3 + col*3 + 1] != 255 ||
+                image[row*w*3 + col*3 + 2] != 255){
+              for (int color=0; color<3; color++){
+                t(row,col,color) = image[row*w*3 + col*3 + color];
+              }
+            }
+          }
+      }
+      t.pack();
+      tensors.push_back(t);
+      total_size+=t.getStorage().getValues().getSize();
+    } else if (kind == Kind::RLE){
+      Tensor<uint8_t> t{"rle_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, {Dense,RLE_size(3),Dense}, 255};
+      uint8_t curr[3] = {image[0], image[1], image[2]};
+      t(0,0,0) = curr[0];
+      t(0,0,1) = curr[1];
+      t(0,0,2) = curr[2];
       for (int row=0; row<h; row++){
         for (int col=0; col<w; col++){
-          if (vals[frame*w*h*3 + row*w*3 + col*3 + 0] != 255 ||
-              vals[frame*w*h*3 + row*w*3 + col*3 + 1] != 255 ||
-              vals[frame*w*h*3 + row*w*3 + col*3 + 2] != 255){
+          if (image[row*w*3 + col*3 + 0] != curr[0] ||
+              image[row*w*3 + col*3 + 1] != curr[1] ||
+              image[row*w*3 + col*3 + 2] != curr[2]){
+            curr[0] = image[row*w*3 + col*3 + 0];
+            curr[1] = image[row*w*3 + col*3 + 1];
+            curr[2] = image[row*w*3 + col*3 + 2];
             for (int color=0; color<3; color++){
-              t(frame,row,col,color) = vals[frame*h*w*3 + row*w*3 + col*3 + color];
+              t(row,col,color) = image[row*w*3 + col*3 + color];
             }
           }
         }
       }
+      t.pack();
+      tensors.push_back(t);
+      total_size+=t.getStorage().getValues().getSize();
     }
-    t.pack();
-    return {t,t.getStorage().getValues().getSize()};
-  } else if (kind == Kind::RLE){
-    Tensor<uint8_t> t{"rle_" + std::to_string(start) + "_" + std::to_string(end), {l,h,w,3}, {Dense,Dense,RLE_size(3),Dense}, 255};
-    uint8_t curr[3] = {vals[0], vals[1], vals[2]};
-    t(0,0,0,0) = curr[0];
-    t(0,0,0,1) = curr[1];
-    t(0,0,0,2) = curr[2];
-    for (int frame=0; frame<l; frame++){
-      // std::cout << frame << std::endl;
-      for (int row=0; row<h; row++){
-        for (int col=0; col<w; col++){
-          if (vals[frame*w*h*3 + row*w*3 + col*3 + 0] != curr[0] ||
-              vals[frame*w*h*3 + row*w*3 + col*3 + 1] != curr[1] ||
-              vals[frame*w*h*3 + row*w*3 + col*3 + 2] != curr[2]){
-            curr[0] = vals[frame*w*h*3 + row*w*3 + col*3 + 0];
-            curr[1] = vals[frame*w*h*3 + row*w*3 + col*3 + 1];
-            curr[2] = vals[frame*w*h*3 + row*w*3 + col*3 + 2];
-            for (int color=0; color<3; color++){
-              t(frame,row,col,color) = vals[frame*w*h*3 + row*w*3 + col*3 + color];
-            }
-          }
-        }
-      }
-    }
-    t.pack();
-    return {t,t.getStorage().getValues().getSize()};
   }
 
-  Tensor<uint8_t> t{"error", {1}, {Dense}, 255};
-  return {t, 0};
+  return {tensors, total_size};
 }
 
 uint32_t saveRGBTensor(std::vector<unsigned char> valsVec, std::string path){
@@ -175,10 +173,12 @@ void brighten_bench(){
 
   auto start_str = getEnvVar("IMAGE_START");
   if (start_str == "") {
+    std::cout << "No start" << std::endl;
     return;
   }
   auto end_str = getEnvVar("IMAGE_END");
   if (end_str == "") {
+    std::cout << "No end" << std::endl;
     return;
   }
 
@@ -186,144 +186,110 @@ void brighten_bench(){
   int end = std::stoi(end_str);
   int numFrames = end - (start-1);
 
-  {
+  auto bench_kind = getEnvVar("BENCH_KIND");
+  
+  if (bench_kind == "DENSE") {
     Kind kind = Kind::DENSE;
     auto res = read_rgb_sequence(start, end, Kind::DENSE);
-    Tensor<uint8_t> in = res.first;
-    Tensor<uint8_t> out("out", {numFrames, 1080, 1920, 3}, Format{Dense,Dense,Dense,Dense});
-    auto brighten = getBrightenFunc(20,true);
-    IndexStmt stmt = (out(f,i,j,c) = brighten(in(f,i,j,c)));
-    out.compile();
-    out.assemble();
+    std::vector<Tensor<uint8_t>> in = res.first;
+    std::vector<taco_tensor_t*> outv;
+    std::vector<taco_tensor_t*> inv;
+    Kernel k;
+    for(auto& t : in){
+      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,Dense,Dense});
+      auto brighten = getBrightenFunc(20,true);
+      IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
+      out.compile();
+      out.assemble();
+      // out.compute();
+      outv.push_back(out.getTacoTensorT());
+      inv.push_back(t.getTacoTensorT());
 
-    Kernel k = getKernel(stmt, out);
+      k = getKernel(stmt, out);
+    }
 
-    auto outStorage = out.getStorage();
-    auto inStorage = in.getStorage();
-    taco_tensor_t* a0 = outStorage;
-    taco_tensor_t* a1 = inStorage;
     std::cout << start << "," << end << "," << "DENSE" << "," << res.second  << ",";
-    TOOL_BENCHMARK_REPEAT(
-            k.compute(a0,a1),
-            "Compute",
-            repetitions);
-
-    uint8_t* a0vals = a0->vals;
-    for (int frame=0; frame < numFrames; frame++){
-      std::vector<uint8_t> vals(a0vals,a0vals+1080*1920*3);
-      a0vals+=1080*1920*3;
-      saveRGBTensor(vals, getValidationOutputPath() + "dense_output_" + std::to_string(frame+start) + ".png");
-    }
-    uint8_t* a1vals = a1->vals;
-    for (int frame=0; frame < numFrames; frame++){
-      std::vector<uint8_t> vals(a1vals,a1vals+1080*1920*3);
-      a1vals+=1080*1920*3;
-      saveRGBTensor(vals, getValidationOutputPath() + "input_" + std::to_string(frame+start) + ".png");
-    }
-  }
-  {
+    TOOL_BENCHMARK_REPEAT({
+      for (int f=0; f< numFrames; f++){
+        k.compute(outv[f],inv[f]);
+      }
+    }, "Compute", repetitions);
+  } else if (bench_kind == "SPARSE") {
     auto res = read_rgb_sequence(start, end, Kind::SPARSE);
-    Tensor<uint8_t> in = res.first;
-    Tensor<uint8_t> out("out", {numFrames, 1080, 1920, 3}, Format{Dense,Dense,Sparse,Dense});
-    auto brighten = getBrightenFunc(20,false);
-    IndexStmt stmt = (out(f,i,j,c) = brighten(in(f,i,j,c)));
-    out.compile();
-    out.assemble();
-    // out.printComputeIR(std::cout);
+    std::vector<Tensor<uint8_t>> in = res.first;
+    std::vector<taco_tensor_t*> outv;
+    std::vector<taco_tensor_t*> inv;
+    Kernel k;
+    for(auto& t : in){
+      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,Sparse,Dense});
+      auto brighten = getBrightenFunc(20,false);
+      IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
+      out.compile();
+      out.assemble();
+      // out.compute();
+      outv.push_back(out.getTacoTensorT());
+      inv.push_back(t.getTacoTensorT());
 
-    Kernel k = getKernel(stmt, out);
+      k = getKernel(stmt, out);
+    }
 
-    auto outStorage = out.getStorage();
-    auto inStorage = in.getStorage();
-    taco_tensor_t* a0 = outStorage;
-    taco_tensor_t* a1 = inStorage;
     std::cout << start << "," << end << "," << "SPARSE" << "," << res.second  << ",";
-    TOOL_BENCHMARK_REPEAT(
-            k.compute(a0,a1),
-            "Compute",
-            repetitions);
-
-    out.compute();
-    Tensor<uint8_t> dense("dense", {numFrames, 1080, 1920, 3}, Format{Dense,Dense,Dense,Dense});
-    dense(f, i, j, c) = copy(out(f,i,j,c));
-    dense.setAssembleWhileCompute(true);
-    dense.compile();
-    dense.compute();
-    // dense.printComputeIR(std::cout);
-
-    taco_tensor_t* denseOut = dense.getStorage();
-    uint8_t* a0vals = denseOut->vals;
-    for (int frame=0; frame < numFrames; frame++){
-      std::vector<uint8_t> vals(a0vals,a0vals+1080*1920*3);
-      a0vals+=1080*1920*3;
-      saveRGBTensor(vals, getValidationOutputPath() + "sparse_output_" + std::to_string(frame+start) + ".png");
-    }
-  }
-  {
+    TOOL_BENCHMARK_REPEAT({
+      for (int f=0; f< numFrames; f++){
+        k.compute(outv[f],inv[f]);
+      }
+    }, "Compute", repetitions);
+  } else if (bench_kind == "RLE") {
     auto res = read_rgb_sequence(start, end, Kind::RLE);
-    Tensor<uint8_t> in = res.first;
-    Tensor<uint8_t> out("out", {numFrames, 1080, 1920, 3}, Format{Dense,Dense,RLE_size(3),Dense});
-    auto brighten = getBrightenFunc(20,false);
-    IndexStmt stmt = (out(f,i,j,c) = brighten(in(f,i,j,c)));
-    out.compile();
-    out.assemble();
+    std::vector<Tensor<uint8_t>> in = res.first;
+    std::vector<taco_tensor_t*> outv;
+    std::vector<taco_tensor_t*> inv;
+    Kernel k;
+    for(auto& t : in){
+      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,RLE_size(3),Dense});
+      auto brighten = getBrightenFunc(20,false);
+      IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
+      out.compile();
+      out.assemble();
+      // out.compute();
+      outv.push_back(out.getTacoTensorT());
+      inv.push_back(t.getTacoTensorT());
 
-    Kernel k = getKernel(stmt, out);
+      k = getKernel(stmt, out);
+    }
 
-    auto outStorage = out.getStorage();
-    auto inStorage = in.getStorage();
-    taco_tensor_t* a0 = outStorage;
-    taco_tensor_t* a1 = inStorage;
     std::cout << start << "," << end << "," << "RLE" << "," << res.second  << ",";
-    TOOL_BENCHMARK_REPEAT(
-            k.compute(a0,a1),
-            "Compute",
-            repetitions);
-
-    out.compute();
-    Tensor<uint8_t> dense("dense", {numFrames, 1080, 1920, 3}, Format{Dense,Dense,Dense,Dense});
-    dense(f, i, j, c) = copy(out(f,i,j,c));
-    dense.setAssembleWhileCompute(true);
-    dense.compile();
-    dense.compute();
-
-    taco_tensor_t* denseOut = dense.getStorage();
-    uint8_t* a0vals = denseOut->vals;
-    for (int frame=0; frame < numFrames; frame++){
-      std::vector<uint8_t> vals(a0vals,a0vals+1080*1920*3);
-      a0vals+=1080*1920*3;
-      saveRGBTensor(vals, getValidationOutputPath() + "rle_output_" + std::to_string(frame+start) + ".png");
-    }
-  }
-  {
+    TOOL_BENCHMARK_REPEAT({
+      for (int f=0; f< numFrames; f++){
+        k.compute(outv[f],inv[f]);
+      }
+    }, "Compute", repetitions);
+  } else if (bench_kind == "LZ77") {
     auto res = read_rgb_sequence(start, end, Kind::LZ77);
-    Tensor<uint8_t> in = res.first;
-    Tensor<uint8_t> out("out", {numFrames*1080*1920*3}, Format{LZ77});
-    auto brighten = getBrightenFunc(20,true);
-    IndexStmt stmt = (out(i) = brighten(in(i)));
-    out.setAssembleWhileCompute(true);
-    out.compile();
+    std::vector<Tensor<uint8_t>> in = res.first;
+    std::vector<taco_tensor_t*> outv;
+    std::vector<taco_tensor_t*> inv;
+    Kernel k;
+    for(auto& t : in){
+      Tensor<uint8_t> out("out", {1080*1920*3}, Format{LZ77});
+      auto brighten = getBrightenFunc(20,true);
+      IndexStmt stmt = (out(i) = brighten(t(i)));
+      out.setAssembleWhileCompute(true);
+      out.compile();
+      // out.compute();
+      outv.push_back(out.getTacoTensorT());
+      inv.push_back(t.getTacoTensorT());
 
-    Kernel k = getKernel(stmt, out);
-
-    auto outStorage = out.getStorage();
-    auto inStorage = in.getStorage();
-    taco_tensor_t* a0 = outStorage;
-    taco_tensor_t* a1 = inStorage;
-    std::cout << start << "," << end << "," << "LZ77" << "," << res.second  << ",";
-    TOOL_BENCHMARK_REPEAT(
-            k.compute(a0,a1),
-            "Compute",
-            repetitions);
-
-    std::vector<uint8_t> lz77_bytes(a0->vals,a0->vals+((int*)a0->indices[0][0])[1]);
-    auto d = unpackLZ77_bytes(lz77_bytes);
-    auto a0vals = &d[0];
-
-    for (int frame=0; frame < numFrames; frame++){
-      std::vector<uint8_t> vals(a0vals,a0vals+1080*1920*3);
-      a0vals+=1080*1920*3;
-      saveRGBTensor(vals, getValidationOutputPath() + "lz77_output_" + std::to_string(frame+start) + ".png");
+      k = getKernel(stmt, out);
     }
+
+    std::cout << start << "," << end << "," << "LZ77" << "," << res.second  << ",";
+    TOOL_BENCHMARK_REPEAT({
+      for (int f=0; f< numFrames; f++){
+        k.compute(outv[f],inv[f]);
+      }
+    }, "Compute", repetitions);
+  } else {
+    std::cout << "benchmark kind " << bench_kind << " unknown" << std::endl;
   }
 }
