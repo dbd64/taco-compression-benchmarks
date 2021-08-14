@@ -98,58 +98,6 @@ std::pair<Tensor<uint8_t>, size_t> read_rgb_sequence(int start, int end, Kind ki
   if (kind == Kind::DENSE){
     return {makeDense("dense_" + std::to_string(start) + "_" + std::to_string(end), {l,h,w,3}, vals), l*w*h*3};
   } else if (kind == Kind::LZ77){
-    // std::vector<TempValue<uint8_t>> out;
-    // uint16_t r = 0;
-    // uint8_t curr[3] = {vals[0], vals[1], vals[2]};
-    // out.push_back(curr[0]);
-    // out.push_back(curr[1]);
-    // out.push_back(curr[2]);
-    // for (size_t i=3; i<vals.size(); i+=3){
-    //   if (vals[i] == curr[0] && vals[i+1] == curr[1] && vals[i+2] == curr[2] && r+3<32768){
-    //     r+=3;
-    //   } else {
-    //     if (r){
-    //       out.push_back(Repeat{3,r});
-    //       r=0;
-    //     }
-    //     curr[0] = vals[i];
-    //     curr[1] = vals[i+1];
-    //     curr[2] = vals[i+2];
-    //     out.push_back(curr[0]);
-    //     out.push_back(curr[1]);
-    //     out.push_back(curr[2]);
-
-    //   }
-    // }
-    // if (r){
-    //   out.push_back(Repeat{3,r});
-    //   r = 0;
-    // }
-
-    // std::vector<TempValue<uint8_t>> out;
-    // out.push_back(vals[0]);
-    // uint16_t r = 0;
-    // uint8_t c = vals[0];
-    // for (size_t i=1; i<vals.size(); i++){
-    //   if (vals[i] == c && r+1<32768){
-    //     r++;
-    //   } else {
-    //     if (r){
-    //       out.push_back(Repeat{1,r});
-    //       r = 0;
-    //     }
-    //     c = vals[i];
-    //     out.push_back(c);
-    //   }
-    // }
-    // if (r){
-    //   out.push_back(Repeat{1,r});
-    //   r = 0;
-    // }
-    // for (auto& val : vals){
-    //   out.push_back(val);
-    // }
-    // auto packed = packLZ77_bytes(out);
     auto packed = encode_lz77(vals);
     return {makeLZ77<uint8_t>("lz77_" + std::to_string(start) + "_" + std::to_string(end),
                           {l*h*w*3},
@@ -221,7 +169,7 @@ void brighten_bench(){
   taco::util::TimeResults timevalue{};
   const IndexVar i("i"), j("j"), f("f"), c("c");
 
-  int repetitions = getValidationOutputPath() == "" ? 100 : 1; 
+  int repetitions = 100; 
 
   std::cout << "start,end,kind,total_bytes,mean,stddev,median" << std::endl;
 

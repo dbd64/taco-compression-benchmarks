@@ -43,18 +43,23 @@ void set_uint16(std::vector<uint8_t>& out, int index, uint16_t value){
   out[index + 1] = store.bytes[1];
 }
 
+uint16_t load_uint16(std::vector<uint8_t>& out, int index){
+  short_byte store;
+  store.bytes[0] = out[index];
+  store.bytes[1] = out[index+1];
+  return store.val;
+}
 
 std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
   int in_idx = 0;
-  int len, off = 0, lit = 0;
-
   int count_idx = -1;
   std::vector<int> hash(65536);
 
   std::vector<uint8_t> out;
 
   while( in_idx < in.size() ) {
-    len = 1;
+    int len = 1;
+    int off = 0;
     if( in_idx + 2 < in.size() ) {
       auto rle = find_match(in_idx, out.size(), out.size() - 1, in, out);
       auto pixelRle = find_match(in_idx, out.size(), out.size() - 3, in, out);
@@ -68,7 +73,7 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
         off = hashCheck.second;
       }
     }
-    if( len > 4 ) {
+    if( len >= 4 ) {
       if( len > MAX_LIT ) {
         len = MAX_LIT;
       }
@@ -80,25 +85,29 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
       in_idx+=len;
     } else {
       while( len ) {
+        if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
+          count_idx = -1;
+        }
         if (count_idx == -1) {
           count_idx = out.size();
           push_uint16(out, 0);
         }
+        
+        int old_cout = load_uint16(out, count_idx);
 
-        int new_count = len+out[count_idx] > MAX_LIT ? MAX_LIT : len+out[count_idx];
-        int max = new_count - out[count_idx];
+        int new_count = len+old_cout > MAX_LIT ? MAX_LIT : len+old_cout;
+        int max = new_count - old_cout;
         len -= max;
         set_uint16(out, count_idx, new_count);
-        if(max == MAX_LIT){
-          count_idx=-1;
+        if (count_idx+2<out.size()) {
+          hash[computeHash(out, count_idx)] = count_idx;
         }
         while( max ) {
-          out.push_back(in[ in_idx ]);
+          out.push_back(in[ in_idx++ ]);
           if(out.size() > 2) {
             hash[computeHash(out, out.size()-3)] = out.size()-3;
           }
           max--;
-          in_idx++;
         }
       }
     }
