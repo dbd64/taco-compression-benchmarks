@@ -6501,22 +6501,23 @@ static unsigned inflateNoCompression_custom(ucvector* out, ucvector* compressed,
 }
 
 static unsigned fixup_distance(unsigned distance, unsigned length, ucvector* out, unsigned start_, ucvector* compressed){
-  unsigned size = std::min(distance,length);
-  unsigned memcmp_result = lodepng_memcmp(out->data + start_,
-                                          compressed->data + compressed->size-distance,
-                                          size);
-  if (memcmp_result == 0){
-    return distance;
-  }
-
-  unsigned mapped = map_dist(distance, length);
-  memcmp_result = lodepng_memcmp(out->data + start_,
-                                 compressed->data + compressed->size-mapped,
-                                 size);
-  if (memcmp_result == 0){
-    return mapped;
-  }
   return 0;
+  // unsigned size = std::min(distance,length);
+  // unsigned memcmp_result = lodepng_memcmp(out->data + start_,
+  //                                         compressed->data + compressed->size-distance,
+  //                                         size);
+  // if (memcmp_result == 0){
+  //   return distance;
+  // }
+
+  // unsigned mapped = map_dist(distance, length);
+  // memcmp_result = lodepng_memcmp(out->data + start_,
+  //                                compressed->data + compressed->size-mapped,
+  //                                size);
+  // if (memcmp_result == 0){
+  //   return mapped;
+  // }
+  // return 0;
 }
 
 static void push_distlen(ucvector* compressed, const unsigned distance,  const unsigned length,
