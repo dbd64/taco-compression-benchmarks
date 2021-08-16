@@ -11,10 +11,12 @@
 void sketch_alpha_blending();
 void brighten_bench();
 void mri_bench();
+void movie_alpha_bench();
 
 int main(){
     // sketch_alpha_blending();
     // brighten_bench();
-    mri_bench();
+    // mri_bench();
+    movie_alpha_bench();
     return 0;
 }
