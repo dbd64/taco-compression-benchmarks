@@ -57,7 +57,7 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
   } else if (kind == Kind::LZ77){
     auto packed = encode_lz77(image);
     auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
-                          {h*w*3},
+                          {h*w},
                           {0, (int)packed.size()}, packed);
     return {t, packed.size()};
   } else if (kind == Kind::SPARSE){
@@ -104,7 +104,7 @@ std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind
     i = i > threshold ? 1 : 0; 
   }
 
-  return to_tensor(image,h,w,index,"mri_" + std::to_string(threshold) + "_", kind);
+  return to_tensor(image,h,w,index,"_mri_" + std::to_string(threshold) + "_", kind);
 }
 
 
@@ -163,6 +163,28 @@ void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string 
   saveTensor(validation, "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/out/roi/validation/" + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
 }
 
+struct XorOp {
+    ir::Expr xorf(ir::Expr l, ir::Expr r){
+        return ir::BinOp::make(l,r, "(", "^", ")");
+    }
+
+    ir::Expr operator()(const std::vector<ir::Expr> &v) {
+        taco_iassert(v.size() == 3) << "Requires 3 arguments (img_t1, img_t2, ROI) ";
+        return xorf(v[0], v[1]);
+    }
+};
+
+struct AndOp {
+    ir::Expr andf(ir::Expr l, ir::Expr r){
+        return ir::BinOp::make(l,r, "(", "&", ")");
+    }
+
+    ir::Expr operator()(const std::vector<ir::Expr> &v) {
+        taco_iassert(v.size() == 3) << "Requires 3 arguments (img_t1, img_t2, ROI) ";
+        return andf(v[0], v[1]);
+    }
+};
+
 struct XorAndOp {
   ir::Expr xorf(ir::Expr l, ir::Expr r){
     return ir::BinOp::make(l,r, "(", "^", ")");
@@ -203,19 +225,20 @@ struct universeAlgebra {
 
 
 Func xorAndOp("fused_xor_and", XorAndOp(), unionAlgebra());
+Func xorOp_lz("xor", XorOp(), universeAlgebra());
+Func andOp_lz("and", AndOp(), universeAlgebra());
 Func xorAndOp_lz("fused_xor_and", XorAndOp(), universeAlgebra());
 
-void mri_bench(){
+void bench(std::string bench_kind){
   bool time = true;
   auto copy = getCopyFunc();
   taco::util::TimeResults timevalue{};
   const IndexVar i("i"), j("j");
 
-  int repetitions = 100; 
+  int repetitions = 100;
 
   std::cout << "index,kind,total_bytes,mean,stddev,median" << std::endl;
 
-  auto bench_kind = getEnvVar("BENCH_KIND");
   Kind kind;
   Format f;
   if (bench_kind == "DENSE") {
@@ -231,7 +254,6 @@ void mri_bench(){
     kind = Kind::LZ77;
     f = Format{LZ77};
   }
-
 
   for (int index=1; index<=253; index++){
     int w = 0;
@@ -268,11 +290,14 @@ void mri_bench(){
 
     out.compute();
 
-    // out.printComputeIR(std::cout);
-
     saveValidation(img_t1, kind, w, h, bench_kind, index, "img_t1", true);
     saveValidation(img_t2, kind, w, h, bench_kind, index, "img_t2", true);
     saveValidation(roi_t, kind, w, h, bench_kind, index, "roi", true);
     saveValidation(out, kind, w, h, bench_kind, index, "out", true);
   }
+}
+
+void mri_bench(){
+  auto bench_kind = getEnvVar("BENCH_KIND");
+  bench(bench_kind);
 }

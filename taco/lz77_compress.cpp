@@ -50,6 +50,34 @@ uint16_t load_uint16(std::vector<uint8_t>& out, int index){
   return store.val;
 }
 
+void push_one(std::vector<uint8_t>& out, const std::vector<uint8_t>& in, std::vector<int>& hash, int& count_idx, int& in_idx){
+  int len = 1;
+  if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
+    count_idx = -1;
+  }
+  if (count_idx == -1) {
+    count_idx = out.size();
+    push_uint16(out, 0);
+  }
+
+  int old_cout = load_uint16(out, count_idx);
+
+  int new_count = len+old_cout > MAX_LIT ? MAX_LIT : len+old_cout;
+  int max = new_count - old_cout;
+  len -= max;
+  set_uint16(out, count_idx, new_count);
+  if (count_idx+2<out.size()) {
+    hash[computeHash(out, count_idx)] = count_idx;
+  }
+  while( max ) {
+    out.push_back(in[ in_idx++ ]);
+    if(out.size() > 2) {
+      hash[computeHash(out, out.size()-3)] = out.size()-3;
+    }
+    max--;
+  }
+}
+
 std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
   int in_idx = 0;
   int count_idx = -1;
@@ -83,6 +111,8 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
       hash[computeHash(out, out.size()-4)] = out.size()-4;
       hash[computeHash(out, out.size()-3)] = out.size()-3;
       in_idx+=len;
+      if (in_idx < in.size())
+        push_one(out,in,hash,count_idx,in_idx);
     } else {
       while( len ) {
         if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
