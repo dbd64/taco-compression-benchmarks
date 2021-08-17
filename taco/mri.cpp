@@ -47,15 +47,18 @@ std::vector<uint8_t> raw_image_(std::string filename, int& w, int& h){
     return std::move(image);
 }
 
-std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in);
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
-                                             int index, std::string prefix, Kind kind){
+                                             int index, std::string prefix, Kind kind, int& numVals){
   if (kind == Kind::DENSE){
     auto t = makeDense_2(prefix+"dense_" + std::to_string(index), {h,w}, image);
+    numVals = h*w;
     return {t, h*w};
   } else if (kind == Kind::LZ77){
-    auto packed = encode_lz77(image);
+    auto pr = encode_lz77(image);
+    auto packed = pr.first;
+    numVals = pr.second;
     auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
                           {h*w},
                           {0, (int)packed.size()}, packed);
@@ -70,7 +73,8 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
       }
     }
     t.pack();
-    return {t, t.getStorage().getValues().getSize()};
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*5};
   } else if (kind == Kind::RLE){
     Tensor<uint8_t> t{prefix+"rle_" + std::to_string(index), {h,w}, {Dense,RLE}, 0};
     uint8_t curr = image[0];
@@ -84,11 +88,12 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
       }
     }
     t.pack();
-    return {t, t.getStorage().getValues().getSize()};
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*5};
   }
 }
 
-std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind kind, int& w, int& h) {
+std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind kind, int& w, int& h, int& numVals) {
   auto img_folder = getEnvVar("IMAGE_FOLDER");
   if (img_folder == "") {
     img_folder = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/mri/";
@@ -104,12 +109,12 @@ std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind
     i = i > threshold ? 1 : 0; 
   }
 
-  return to_tensor(image,h,w,index,"_mri_" + std::to_string(threshold) + "_", kind);
+  return to_tensor(image,h,w,index,"_mri_" + std::to_string(threshold) + "_", kind, numVals);
 }
 
 
 
-std::pair<Tensor<uint8_t>, size_t> generateROI(int width, int height, int index, Kind kind) {
+std::pair<Tensor<uint8_t>, size_t> generateROI(int width, int height, int index, Kind kind, int& numVals) {
   vector<uint8_t> vals(width*height, 0);
   if (width <100 || height < 100) {
     std::cout << "SIZE ERROR: " << width << ", " << height << std::endl;
@@ -131,7 +136,7 @@ std::pair<Tensor<uint8_t>, size_t> generateROI(int width, int height, int index,
       }
     }
   }
-  return to_tensor(vals, height, width, index, "roi_", kind);
+  return to_tensor(vals, height, width, index, "roi_", kind, numVals);
 }
 
 
@@ -160,7 +165,7 @@ void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string 
 
   uint8_t* start = (uint8_t*) v.getStorage().getValues().getData();
   std::vector<uint8_t> validation(start, start+w*h);
-  saveTensor(validation, "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/out/roi/validation/" + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
+  saveTensor(validation, getValidationOutputPath() + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
 }
 
 struct XorOp {
@@ -223,11 +228,27 @@ struct universeAlgebra {
   }
 }; 
 
+struct xorAndAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    auto m1 = Intersect(regions[0], regions[2]);
+    auto m2 = Intersect(regions[1], regions[2]);
+    auto noIntersect = Complement(Intersect(Intersect(regions[0], regions[1]), regions[2]));
+    return Intersect(noIntersect, Union(m1, m2));
+  }
+};
+
+struct Boolean {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    taco_iassert(v.size() >= 1) << "Add operator needs at least one operand";
+    return ir::Literal::make(int64_t(1), v[0].type());
+  }
+};
 
 Func xorAndOp("fused_xor_and", XorAndOp(), unionAlgebra());
 Func xorOp_lz("xor", XorOp(), universeAlgebra());
 Func andOp_lz("and", AndOp(), universeAlgebra());
 Func xorAndOp_lz("fused_xor_and", XorAndOp(), universeAlgebra());
+Func xorAndOp_sparse("fused_xor_and", Boolean(), xorAndAlgebra());
 
 void bench(std::string bench_kind){
   bool time = true;
@@ -258,10 +279,13 @@ void bench(std::string bench_kind){
   for (int index=1; index<=253; index++){
     int w = 0;
     int h = 0;
-    auto img_t1_res =  read_mri_image(index, (int) (0.75*255), kind, w, h);
-    auto img_t2_res =  read_mri_image(index, (int) (0.80*255), kind, w, h);
+    int t1_num_vals = 0;
+    int t2_num_vals = 0;
+    int roi_num_vals = 0;
+    auto img_t1_res =  read_mri_image(index, (int) (0.75*255), kind, w, h, t1_num_vals);
+    auto img_t2_res =  read_mri_image(index, (int) (0.80*255), kind, w, h, t2_num_vals);
     auto dims = img_t2_res.first.getDimensions();
-    auto roi = generateROI(w,h, index, kind);
+    auto roi = generateROI(w,h, index, kind, roi_num_vals);
 
     auto img_t1 = img_t1_res.first;
     auto img_t2 = img_t2_res.first;
@@ -271,6 +295,8 @@ void bench(std::string bench_kind){
     IndexStmt stmt;
     if (kind == Kind::LZ77){
       stmt = (out(i) = xorAndOp_lz(img_t1_res.first(i), img_t2_res.first(i), roi.first(i)));
+    } else if (kind == Kind::SPARSE) {
+      stmt = (out(i,j) = xorAndOp_sparse(img_t1_res.first(i,j), img_t2_res.first(i,j), roi.first(i,j)));
     } else {
       stmt = (out(i,j) = xorAndOp(img_t1_res.first(i,j), img_t2_res.first(i,j), roi.first(i,j)));
     }
@@ -287,6 +313,7 @@ void bench(std::string bench_kind){
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
     }, "Compute", repetitions);
+    std::cout << std::endl;
 
     out.compute();
 

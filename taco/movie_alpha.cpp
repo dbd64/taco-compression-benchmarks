@@ -23,7 +23,7 @@ Index makeDenseIndex_3(int s0, int s1, int s2) {
 template<typename T>
 TensorBase makeDense_3(const std::string& name, const std::vector<int>& dims,
                   const std::vector<T>& vals) {
- Tensor<T> tensor(name, dims, Format{Dense, Dense});
+ Tensor<T> tensor(name, dims, Format{Dense, Dense, Dense});
  auto storage = tensor.getStorage();
  storage.setIndex(makeDenseIndex_3(dims[0], dims[1], dims[2]));
  storage.setValues(makeArray(vals));
@@ -48,15 +48,18 @@ std::vector<uint8_t> raw_image_ma(std::string filename, int& w, int& h){
    return std::move(image);
 }
 
-std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in);
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
-                                            int index, std::string prefix, Kind kind){
+                                            int index, std::string prefix, Kind kind, int& numVals){
  if (kind == Kind::DENSE){
    auto t = makeDense_3(prefix+"dense_" + std::to_string(index), {h,w,3}, image);
-   return {t, h*w};
+   numVals = h*w*3;
+   return {t, h*w*3};
  } else if (kind == Kind::LZ77){
-   auto packed = encode_lz77(image);
+   auto packedr = encode_lz77(image);
+   auto packed = packedr.first;
+   numVals = packedr.second;
    auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
                          {h*w*3},
                          {0, (int)packed.size()}, packed);
@@ -75,7 +78,8 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> imag
         }
     }
     t.pack();
-   return {t, t.getStorage().getValues().getSize()};
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*5};
  } else if (kind == Kind::RLE){
    Tensor<uint8_t> t{prefix+"rle_" + std::to_string(index), {h,w,3}, {Dense,RLE_size(3),Dense}, 0};
     uint8_t curr[3] = {image[0], image[1], image[2]};
@@ -97,11 +101,12 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> imag
     }
     }
     t.pack();
-   return {t, t.getStorage().getValues().getSize()};
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*5};
  }
 }
 
-std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, int index, Kind kind, int& w, int& h) {
+std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std::string prefix, int index, Kind kind, int& w, int& h, int& numVals) {
   std::ostringstream stringStream;
   stringStream << img_folder;
   if (index < 10){
@@ -114,10 +119,10 @@ std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, int 
 
   auto image = raw_image_ma(filename, w, h);
 
- return to_tensor_rgb(image,h,w,index,"f" + std::to_string(index) + "_", kind);
+ return to_tensor_rgb(image,h,w,index,prefix+"f" + std::to_string(index) + "_", kind, numVals);
 }
 
-uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int width, int height){
+uint32_t saveTensor_RGB(std::vector<unsigned char> valsVec, std::string path, int width, int height){
  std::vector<unsigned char> png_mine;
  auto error = lodepng::encode(png_mine, valsVec, width, height, LCT_RGB);
  if(!error) lodepng::save_file(png_mine, path);
@@ -125,25 +130,32 @@ uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int wi
  return error;
 }
 
-void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string bench_kind, int index, std::string prefix){
+void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, bool isroi, std::string bench_kind, int index, std::string prefix){
  const IndexVar i("i"), j("j"), c("c");
  auto copy = getCopyFunc();
  auto dims = roi_t.getDimensions();
 
- Tensor<uint8_t> v("v", dims, dims.size() == 1? Format{Dense} : Format{Dense,Dense});
+ Tensor<uint8_t> v("v", dims, dims.size() == 1? Format{Dense} : Format{Dense,Dense,Dense});
  if (kind == Kind::LZ77){
-   v(i) = copy(roi_t(i));
+   v(i) = copy((isroi ? 255 : 1) * roi_t(i));
  } else {
-   v(i,j,c) = copy(roi_t(i,j,c));
+   v(i,j,c) = copy((isroi ? 255 : 1) * roi_t(i,j,c));
  }
  v.setAssembleWhileCompute(true);
  v.compile();
  v.compute();
 
  uint8_t* start = (uint8_t*) v.getStorage().getValues().getData();
- std::vector<uint8_t> validation(start, start+w*h);
- saveTensor(validation, getValidationOutputPath() + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
+ std::vector<uint8_t> validation(start, start+w*h*3);
+ saveTensor_RGB(validation, getValidationOutputPath() + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
 }
+
+struct BlendOp {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    taco_iassert(v.size() == 2) << "Requires 2 arguments";
+    return ir::Add::make(ir::Mul::make(0.7, v[0]), ir::Mul::make(0.3, v[1]));
+  }
+};
 
 struct unionAlgebra {
  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
@@ -167,6 +179,9 @@ struct universeAlgebra {
    return t;
  }
 };
+
+Func Blend("blend", BlendOp(), unionAlgebra());
+Func Blend_lz("blend_lz", BlendOp(), universeAlgebra());
 
 
 void movie_alpha_bench(){
@@ -226,8 +241,10 @@ void movie_alpha_bench(){
  for (int index=start; index<=end; index++){
    int w = 0;
    int h = 0;
-   auto f1 = read_movie_frame(folder1, index, kind, w, h);
-   auto f2 = read_movie_frame(folder1, index, kind, w, h);
+   int f1_num_vals = 0;
+   int f2_num_vals = 0;
+   auto f1 = read_movie_frame(folder1, "l", index, kind, w, h, f1_num_vals);
+   auto f2 = read_movie_frame(folder2, "r", index, kind, w, h, f2_num_vals);
    auto dims = f1.first.getDimensions();
 
    auto f1t = f1.first;
@@ -236,9 +253,9 @@ void movie_alpha_bench(){
    Tensor<uint8_t> out("out", dims, f);
    IndexStmt stmt;
    if (kind == Kind::LZ77){
-     stmt = (out(i) = 0.7*f1t(i) + 0.3*f2t(i));
+     stmt = (out(i) = Blend_lz(f1t(i), f2t(i)));
    } else {
-     stmt = (out(i,j,c) = 0.7*f1t(i,j,c) + 0.3*f2t(i,j,c));
+     stmt = (out(i,j,c) = Blend(f1t(i,j,c),f2t(i,j,c)));
    }
    out.setAssembleWhileCompute(true);
    out.compile();
@@ -257,8 +274,8 @@ void movie_alpha_bench(){
 
    // out.printComputeIR(std::cout);
 
-   saveValidation(f1t, kind, w, h, bench_kind, index, "f1");
-   saveValidation(f2t, kind, w, h, bench_kind, index, "f2");
-   saveValidation(out, kind, w, h, bench_kind, index, "out");
+   saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
+   saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");
+   saveValidation(out, kind, w, h, false, bench_kind, index, "out");
  }
 }

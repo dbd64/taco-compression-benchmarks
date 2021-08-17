@@ -50,7 +50,7 @@ Func getBrightenFunc(uint8_t brightness, bool full){
   return plus_;
 }
 
-std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in);
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
 
 std::vector<uint8_t> raw_image(std::string filename, int& w, int& h){
     std::vector<unsigned char> png;
@@ -99,7 +99,7 @@ std::pair<std::vector<Tensor<uint8_t>>, size_t> read_rgb_sequence(int start, int
       total_size += w*h*3;
       tensors.push_back(t);
     } else if (kind == Kind::LZ77){
-      auto packed = encode_lz77(image);
+      auto packed = encode_lz77(image).first;
       auto t = makeLZ77<uint8_t>("lz77_" + std::to_string(start) + "_" + std::to_string(end),
                             {h*w*3},
                             {0, (int)packed.size()}, packed);

@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH --mem 120000
 #SBATCH -p lanka-v3
-#SBATCH --nodelist=lanka33
+#SBATCH --nodelist=lanka29
 #SBATCH --exclusive
 
 # ELEPHANTS DREAM

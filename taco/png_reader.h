@@ -24,7 +24,7 @@ using namespace taco;
 #define TOOL_BENCHMARK_REPEAT(CODE, NAME, REPEAT) {              \
     if (time) {                                                  \
       TACO_TIME_REPEAT(CODE,REPEAT,timevalue,false);             \
-      cout << timevalue << endl; \
+      cout << timevalue; \
     }                                                            \
     else {                                                       \
       CODE;                                                      \

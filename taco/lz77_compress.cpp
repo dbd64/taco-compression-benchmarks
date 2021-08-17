@@ -78,10 +78,11 @@ void push_one(std::vector<uint8_t>& out, const std::vector<uint8_t>& in, std::ve
   }
 }
 
-std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in) {
   int in_idx = 0;
   int count_idx = -1;
   std::vector<int> hash(65536);
+  int numRaw = 0;
 
   std::vector<uint8_t> out;
 
@@ -111,9 +112,12 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
       hash[computeHash(out, out.size()-4)] = out.size()-4;
       hash[computeHash(out, out.size()-3)] = out.size()-3;
       in_idx+=len;
-      if (in_idx < in.size())
+      if (in_idx < in.size()){
         push_one(out,in,hash,count_idx,in_idx);
-    } else {
+        numRaw++;
+      }
+    } else 
+    {
       while( len ) {
         if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
           count_idx = -1;
@@ -134,6 +138,7 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
         }
         while( max ) {
           out.push_back(in[ in_idx++ ]);
+          numRaw++;
           if(out.size() > 2) {
             hash[computeHash(out, out.size()-3)] = out.size()-3;
           }
@@ -142,5 +147,5 @@ std::vector<uint8_t> encode_lz77(const std::vector<uint8_t> in) {
       }
     }
   }
-  return out;
+  return {out, numRaw};
 }
