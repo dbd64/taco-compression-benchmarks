@@ -46,6 +46,7 @@
 
 std::string getEnvVar(std::string varname);
 std::string getTacoTensorPath();
+std::string getOutputPath();
 std::string getValidationOutputPath();
 // cleanPath ensures that the input path ends with "/".
 std::string cleanPath(std::string path);

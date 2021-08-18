@@ -128,7 +128,7 @@ unsigned decode(std::vector<unsigned char>& out, std::vector<unsigned char>& c_o
   return decode(out, c_out, pos, w, h, in.empty() ? 0 : &in[0], (unsigned)in.size(), colortype, bitdepth);
 }
 
-std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes){
+std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals){
   // 0 XXXXXXX XXXXXXXX     -> read X number of bytes
   // 1 XXXXXXX XXXXXXXX Y Y -> X is the run length, Y is the distance
 
@@ -140,6 +140,7 @@ std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes){
       i+=2;
       for(int j=0; j<numBytes; j++){
         out.push_back(bytes[i+j]);
+        numVals++;
       }
       i+=numBytes;
     } else  {
@@ -148,14 +149,17 @@ std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes){
       if (dist < run){
         for (size_t j = i-dist; j<i; j++){
           out.push_back(bytes[j]);
+          numVals++;
         }
         size_t start = out.size()-dist;
         for (size_t j = 0; j<(run-dist); j++){
           out.push_back(out[start + j]);
+          numVals++;
         }
       } else {
         for (size_t j = i-dist; j < i-dist+run; j++){
           out.push_back(bytes[j]);
+          numVals++;
         }
       }
       i+=4;
@@ -336,11 +340,12 @@ std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind) {
     std::cout << "packLZ77_bytes(unpackLZ77_vector()) not working" << std::endl;
   }
 
-  auto temp = unpackLZ77_bytes(compressed);
+  int numVals = 0;
+  auto temp = unpackLZ77_bytes(compressed, numVals);
   //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 
   auto packed_rle = packLZ77_bytes(compress(image));
-  if(unpackLZ77_bytes(packed_rle) != image){
+  if(unpackLZ77_bytes(packed_rle, numVals) != image){
     std::cout << "unpackLZ77_bytes(packLZ77_bytes(compress(image))) not working" << std::endl;
   } else {
 //    std::cout << "packed_rle bytes: " << packed_rle.size() << std::endl;
@@ -780,10 +785,10 @@ static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
         k.compute(a0,a1,a2);
       }
 
-
+     int numVals = 0; 
      int* pos = (int*)(a0->indices[0][0]);
      std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
-     std::vector<uint8_t> vals_actual = unpackLZ77_bytes(valsVec);
+     std::vector<uint8_t> vals_actual = unpackLZ77_bytes(valsVec, numVals);
 
       if (vals_expected != vals_actual){
         std::cerr << "[VALIDATION_ERROR]: bench_sketch_alpha, " << kind << ", " << index;// << ": ";
@@ -839,7 +844,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions);
+              repetitions, std::cout);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
@@ -874,12 +879,13 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions);
+              repetitions, std::cout);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         int* pos = (int*)(a0->indices[0][0]);
         std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
-        saveTensor(unpackLZ77_bytes(valsVec), valPath + "lz77_" + std::to_string(index) + ".png");
+        int numVals = 0;
+        saveTensor(unpackLZ77_bytes(valsVec, numVals), valPath + "lz77_" + std::to_string(index) + ".png");
       }
     }
     {
@@ -903,7 +909,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions);
+              repetitions, std::cout);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(1, {a0}, {es});
@@ -949,7 +955,7 @@ void sketch_alpha_blending(){
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions);
+              repetitions, std::cout);
 
       if (auto valPath = getValidationOutputPath(); valPath != ""){
         k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});

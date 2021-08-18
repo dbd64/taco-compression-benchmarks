@@ -22,6 +22,14 @@ std::string getTacoTensorPath() {
   return cleanPath(result);
 }
 
+std::string getOutputPath() {
+  auto result = getEnvVar("OUTPUT_PATH");
+  if (result != "") {
+    result = cleanPath(result);
+  }
+  return result;
+}
+
 std::string getValidationOutputPath() {
   auto result = getEnvVar("VALIDATION_OUTPUT_PATH");
   if (result != "") {

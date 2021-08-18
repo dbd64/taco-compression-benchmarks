@@ -2,6 +2,7 @@
 #include "benchmark/benchmark.h"
 #include "codegen/codegen_c.h"
 #include "taco/util/timers.h"
+#include "utils.h"
 
 #include "taco/tensor.h"
 #include "taco/format.h"
@@ -14,21 +15,6 @@
 
 using namespace taco;
 
-Index makeDenseIndex_2(int s0, int s1) {
-  return Index(CSR, {ModeIndex({makeArray({s0})}),
-                     ModeIndex({makeArray({s1})})});
-}
-
-template<typename T>
-TensorBase makeDense_2(const std::string& name, const std::vector<int>& dims,
-                   const std::vector<T>& vals) {
-  Tensor<T> tensor(name, dims, Format{Dense, Dense});
-  auto storage = tensor.getStorage();
-  storage.setIndex(makeDenseIndex_2(dims[0], dims[1]));
-  storage.setValues(makeArray(vals));
-  tensor.setStorage(storage);
-  return std::move(tensor);
-}
 
 std::vector<uint8_t> raw_image_(std::string filename, int& w, int& h){
     std::vector<unsigned char> png;
@@ -47,51 +33,6 @@ std::vector<uint8_t> raw_image_(std::string filename, int& w, int& h){
     return std::move(image);
 }
 
-std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
-
-std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
-                                             int index, std::string prefix, Kind kind, int& numVals){
-  if (kind == Kind::DENSE){
-    auto t = makeDense_2(prefix+"dense_" + std::to_string(index), {h,w}, image);
-    numVals = h*w;
-    return {t, h*w};
-  } else if (kind == Kind::LZ77){
-    auto pr = encode_lz77(image);
-    auto packed = pr.first;
-    numVals = pr.second;
-    auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
-                          {h*w},
-                          {0, (int)packed.size()}, packed);
-    return {t, packed.size()};
-  } else if (kind == Kind::SPARSE){
-    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, 0};
-    for (int row=0; row<h; row++){
-      for (int col=0; col<w; col++){
-        if (image[row*w + col] != 0){
-            t(row,col) = image[row*w + col];
-        }
-      }
-    }
-    t.pack();
-    numVals = t.getStorage().getValues().getSize();
-    return {t, t.getStorage().getValues().getSize()*5};
-  } else if (kind == Kind::RLE){
-    Tensor<uint8_t> t{prefix+"rle_" + std::to_string(index), {h,w}, {Dense,RLE}, 0};
-    uint8_t curr = image[0];
-    t(0,0) = curr;
-    for (int row=0; row<h; row++){
-      for (int col=0; col<w; col++){
-        if (image[row*w + col] != curr){
-          curr = image[row*w + col];
-          t(row,col) = curr;
-        }
-      }
-    }
-    t.pack();
-    numVals = t.getStorage().getValues().getSize();
-    return {t, t.getStorage().getValues().getSize()*5};
-  }
-}
 
 std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind kind, int& w, int& h, int& numVals) {
   auto img_folder = getEnvVar("IMAGE_FOLDER");
@@ -111,7 +52,6 @@ std::pair<Tensor<uint8_t>, size_t> read_mri_image(int index, int threshold, Kind
 
   return to_tensor(image,h,w,index,"_mri_" + std::to_string(threshold) + "_", kind, numVals);
 }
-
 
 
 std::pair<Tensor<uint8_t>, size_t> generateROI(int width, int height, int index, Kind kind, int& numVals) {
@@ -139,34 +79,6 @@ std::pair<Tensor<uint8_t>, size_t> generateROI(int width, int height, int index,
   return to_tensor(vals, height, width, index, "roi_", kind, numVals);
 }
 
-
-uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int width, int height){
-  std::vector<unsigned char> png_mine;
-  auto error = lodepng::encode(png_mine, valsVec, width, height, LCT_GREY);
-  if(!error) lodepng::save_file(png_mine, path);
-  if(error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-  return error;
-}
-
-void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string bench_kind, int index, std::string prefix, bool is_roi){
-  const IndexVar i("i"), j("j");
-  auto copy = getCopyFunc();
-  auto dims = roi_t.getDimensions();
-
-  Tensor<uint8_t> v("v", dims, dims.size() == 1? Format{Dense} : Format{Dense,Dense});
-  if (kind == Kind::LZ77){
-    v(i) = copy((is_roi ? 255 : 1)*roi_t(i));
-  } else {
-    v(i,j) = copy((is_roi ? 255 : 1)*roi_t(i,j));
-  }
-  v.setAssembleWhileCompute(true);
-  v.compile();
-  v.compute();
-
-  uint8_t* start = (uint8_t*) v.getStorage().getValues().getData();
-  std::vector<uint8_t> validation(start, start+w*h);
-  saveTensor(validation, getValidationOutputPath() + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
-}
 
 struct XorOp {
     ir::Expr xorf(ir::Expr l, ir::Expr r){
@@ -250,6 +162,14 @@ Func andOp_lz("and", AndOp(), universeAlgebra());
 Func xorAndOp_lz("fused_xor_and", XorAndOp(), universeAlgebra());
 Func xorAndOp_sparse("fused_xor_and", Boolean(), xorAndAlgebra());
 
+void writeHeader(std::ostream& os, int repetitions){
+  os << "index,kind,total_vals,total_bytes,mean,stddev,median,";
+  for (int i=0; i<repetitions-1; i++){
+    os << i << ","; 
+  }
+  os << repetitions-1;
+}
+
 void bench(std::string bench_kind){
   bool time = true;
   auto copy = getCopyFunc();
@@ -257,8 +177,7 @@ void bench(std::string bench_kind){
   const IndexVar i("i"), j("j");
 
   int repetitions = 100;
-
-  std::cout << "index,kind,total_bytes,mean,stddev,median" << std::endl;
+  
 
   Kind kind;
   Format f;
@@ -276,6 +195,9 @@ void bench(std::string bench_kind){
     f = Format{LZ77};
   }
 
+  std::ofstream outputFile(getOutputPath() + to_string(kind) + "_mri.csv");
+  writeHeader(outputFile, repetitions);
+
   for (int index=1; index<=253; index++){
     int w = 0;
     int h = 0;
@@ -286,6 +208,9 @@ void bench(std::string bench_kind){
     auto img_t2_res =  read_mri_image(index, (int) (0.80*255), kind, w, h, t2_num_vals);
     auto dims = img_t2_res.first.getDimensions();
     auto roi = generateROI(w,h, index, kind, roi_num_vals);
+
+    auto total_vals = t1_num_vals + t2_num_vals + roi_num_vals;
+    auto total_bytes = img_t1_res.second + img_t2_res.second + roi.second;
 
     auto img_t1 = img_t1_res.first;
     auto img_t2 = img_t2_res.first;
@@ -309,18 +234,18 @@ void bench(std::string bench_kind){
     taco_tensor_t* a2 = img_t2.getStorage();
     taco_tensor_t* a3 = roi_t.getStorage();
 
-    std::cout << index << "," << bench_kind << "," << img_t1_res.second + img_t2_res.second + roi.second << ",";
+    std::cout << index << "," << bench_kind << "," << total_vals << "," << total_bytes << ",";
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, outputFile);
     std::cout << std::endl;
 
     out.compute();
 
-    saveValidation(img_t1, kind, w, h, bench_kind, index, "img_t1", true);
-    saveValidation(img_t2, kind, w, h, bench_kind, index, "img_t2", true);
-    saveValidation(roi_t, kind, w, h, bench_kind, index, "roi", true);
-    saveValidation(out, kind, w, h, bench_kind, index, "out", true);
+    // saveValidation(img_t1, kind, w, h, bench_kind, index, "img_t1", true);
+    // saveValidation(img_t2, kind, w, h, bench_kind, index, "img_t2", true);
+    // saveValidation(roi_t, kind, w, h, bench_kind, index, "roi", true);
+    // saveValidation(out, kind, w, h, bench_kind, index, "out", true);
   }
 }
 

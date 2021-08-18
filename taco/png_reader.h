@@ -21,10 +21,10 @@ using namespace taco;
     RES = timer.getResult();                         \
   }
 
-#define TOOL_BENCHMARK_REPEAT(CODE, NAME, REPEAT) {              \
+#define TOOL_BENCHMARK_REPEAT(CODE, NAME, REPEAT, STREAM) {      \
     if (time) {                                                  \
-      TACO_TIME_REPEAT(CODE,REPEAT,timevalue,false);             \
-      cout << timevalue; \
+      TACO_TIME_REPEAT(CODE,REPEAT,timevalue,true);              \
+      STREAM << timevalue;                                       \
     }                                                            \
     else {                                                       \
       CODE;                                                      \
@@ -71,7 +71,7 @@ Kernel getKernel(IndexStmt indexStmt, Tensor<uint8_t> t);
 std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind);
 std::pair<Tensor<uint8_t>, size_t> read_rgb_png(int i, Kind kind);
 
-std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes);
+std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals);
 
 uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path);
 

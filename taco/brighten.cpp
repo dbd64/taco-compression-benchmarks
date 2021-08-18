@@ -3,35 +3,13 @@
 #include "taco/util/timers.h"
 #include "bench.h"
 #include "lodepng.h"
+#include "utils.h"
 
 #include <iostream>
 #include <random>
 #include <variant>
 #include <climits>
 #include <limits>
-
-Index makeDenseIndex(int s0, int s1, int s2) {
-  return Index(CSR, {ModeIndex({makeArray({s0})}),
-                     ModeIndex({makeArray({s1})}),
-                     ModeIndex({makeArray({s2})})});
-}
-
-template<typename T>
-TensorBase makeDense(const std::string& name, const std::vector<int>& dims,
-                   const std::vector<T>& vals) {
-  Tensor<T> tensor(name, dims, Format{Dense, Dense, Dense});
-  auto storage = tensor.getStorage();
-  storage.setIndex(makeDenseIndex(dims[0], dims[1], dims[2]));
-  storage.setValues(makeArray(vals));
-  tensor.setStorage(storage);
-  return std::move(tensor);
-}
-
-ir::Expr ternaryOp(const ir::Expr& c, const ir::Expr& a, const ir::Expr& b){
-  // c ? a : b
-  ir::Expr a_b = ir::BinOp::make(a,b, " : ");
-  return ir::BinOp::make(c, a_b, "(", " ? ", ")");
-}
 
 Func getBrightenFunc(uint8_t brightness, bool full){
   auto brighten = [=](const std::vector<ir::Expr>& v) {
@@ -49,8 +27,6 @@ Func getBrightenFunc(uint8_t brightness, bool full){
   Func plus_("plus_", brighten, algFunc);
   return plus_;
 }
-
-std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
 
 std::vector<uint8_t> raw_image(std::string filename, int& w, int& h){
     std::vector<unsigned char> png;
@@ -95,7 +71,7 @@ std::pair<std::vector<Tensor<uint8_t>>, size_t> read_rgb_sequence(int start, int
     auto image = raw_image(filename, w, h);
 
     if (kind == Kind::DENSE){
-      auto t = makeDense("dense_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, image);
+      auto t = makeDense_3("dense_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, image);
       total_size += w*h*3;
       tensors.push_back(t);
     } else if (kind == Kind::LZ77){
@@ -213,7 +189,7 @@ void brighten_bench(){
       for (int f=0; f< numFrames; f++){
         k.compute(outv[f],inv[f]);
       }
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, std::cout);
   } else if (bench_kind == "SPARSE") {
     auto res = read_rgb_sequence(start, end, Kind::SPARSE);
     std::vector<Tensor<uint8_t>> in = res.first;
@@ -238,7 +214,7 @@ void brighten_bench(){
       for (int f=0; f< numFrames; f++){
         k.compute(outv[f],inv[f]);
       }
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, std::cout);
   } else if (bench_kind == "RLE") {
     auto res = read_rgb_sequence(start, end, Kind::RLE);
     std::vector<Tensor<uint8_t>> in = res.first;
@@ -263,7 +239,7 @@ void brighten_bench(){
       for (int f=0; f< numFrames; f++){
         k.compute(outv[f],inv[f]);
       }
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, std::cout);
   } else if (bench_kind == "LZ77") {
     auto res = read_rgb_sequence(start, end, Kind::LZ77);
     std::vector<Tensor<uint8_t>> in = res.first;
@@ -288,7 +264,7 @@ void brighten_bench(){
       for (int f=0; f< numFrames; f++){
         k.compute(outv[f],inv[f]);
       }
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, std::cout);
   } else {
     std::cout << "benchmark kind " << bench_kind << " unknown" << std::endl;
   }

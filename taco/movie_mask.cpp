@@ -2,6 +2,7 @@
 #include "benchmark/benchmark.h"
 #include "codegen/codegen_c.h"
 #include "taco/util/timers.h"
+#include "utils.h"
 
 #include "taco/tensor.h"
 #include "taco/format.h"
@@ -13,24 +14,6 @@
 #include "png_reader.h"
 
 using namespace taco;
-
-template<typename T>
-TensorBase makeDense_3(const std::string& name, const std::vector<int>& dims,
-                  const std::vector<T>& vals);
-
-std::vector<uint8_t> raw_image_ma(std::string filename, int& w, int& h);
-
-std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
-                                            int index, std::string prefix, Kind kind, int& numVals);
-std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
-                                             int index, std::string prefix, Kind kind, int& numVals);
-                                             
-std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std::string prefix, int index, Kind kind, int& w, int& h, int& numVals);
-
-uint32_t saveTensor_RGB(std::vector<unsigned char> valsVec, std::string path, int width, int height);
-
-void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, bool isroi, std::string bench_kind, int index, std::string prefix);
-void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string bench_kind, int index, std::string prefix, bool is_roi);
 
 std::pair<Tensor<uint8_t>, size_t> generateMask(std::string prefix, int index, Kind kind, int w, int h, int& numVals){
   if (kind == Kind::LZ77){
@@ -189,7 +172,7 @@ void movie_mask_bench(){
     std::cout << index << "," << bench_kind << "," << f1.second + f2.second + m.second  << "," << f1_vals + f2_vals + m_vals << ",";
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
-    }, "Compute", repetitions);
+    }, "Compute", repetitions, std::cout);
 
     out.compute();
     std::cout << "," << out.getStorage().getValues().getSize() << std::endl;
