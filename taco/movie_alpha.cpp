@@ -134,6 +134,7 @@ void movie_alpha_bench(){
    TOOL_BENCHMARK_REPEAT({
        k.compute(a0,a1,a2);
    }, "Compute", repetitions, std::cout);
+   std::cout << std::endl;
 
    out.compute();
 

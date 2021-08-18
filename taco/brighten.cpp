@@ -172,7 +172,7 @@ void brighten_bench(){
     std::vector<taco_tensor_t*> inv;
     Kernel k;
     for(auto& t : in){
-      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,Dense,Dense});
+      Tensor<uint8_t> out("out", t.getDimensions(), Format{Dense,Dense,Dense});
       auto brighten = getBrightenFunc(20,true);
       IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
       out.compile();
@@ -197,7 +197,7 @@ void brighten_bench(){
     std::vector<taco_tensor_t*> inv;
     Kernel k;
     for(auto& t : in){
-      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,Sparse,Dense});
+      Tensor<uint8_t> out("out", t.getDimensions(), Format{Dense,Sparse,Dense});
       auto brighten = getBrightenFunc(20,false);
       IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
       out.compile();
@@ -222,7 +222,7 @@ void brighten_bench(){
     std::vector<taco_tensor_t*> inv;
     Kernel k;
     for(auto& t : in){
-      Tensor<uint8_t> out("out", {1080, 1920, 3}, Format{Dense,RLE_size(3),Dense});
+      Tensor<uint8_t> out("out", t.getDimensions(), Format{Dense,RLE_size(3),Dense});
       auto brighten = getBrightenFunc(20,false);
       IndexStmt stmt = (out(i,j,c) = brighten(t(i,j,c)));
       out.compile();
@@ -247,7 +247,7 @@ void brighten_bench(){
     std::vector<taco_tensor_t*> inv;
     Kernel k;
     for(auto& t : in){
-      Tensor<uint8_t> out("out", {1080*1920*3}, Format{LZ77});
+      Tensor<uint8_t> out("out", t.getDimensions(), Format{LZ77});
       auto brighten = getBrightenFunc(20,true);
       IndexStmt stmt = (out(i) = brighten(t(i)));
       out.setAssembleWhileCompute(true);

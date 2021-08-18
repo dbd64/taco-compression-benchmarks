@@ -18,7 +18,7 @@ int main(){
     // sketch_alpha_blending();
     // brighten_bench();
     // mri_bench();
-    // movie_alpha_bench();
-    movie_mask_bench();
+    movie_alpha_bench();
+    // movie_mask_bench();
     return 0;
 }
