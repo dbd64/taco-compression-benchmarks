@@ -71,4 +71,8 @@ void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string 
 std::pair<int,int> count_bytes_vals(Tensor<uint8_t> t);
 
 std::string to_string(Kind k);
+
+void writeHeader(std::ostream& os, int repetitions);
+
+
 #endif

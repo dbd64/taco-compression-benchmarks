@@ -162,14 +162,6 @@ Func andOp_lz("and", AndOp(), universeAlgebra());
 Func xorAndOp_lz("fused_xor_and", XorAndOp(), universeAlgebra());
 Func xorAndOp_sparse("fused_xor_and", Boolean(), xorAndAlgebra());
 
-void writeHeader(std::ostream& os, int repetitions){
-  os << "index,kind,total_vals,total_bytes,mean,stddev,median,";
-  for (int i=0; i<repetitions-1; i++){
-    os << i << ","; 
-  }
-  os << repetitions-1;
-}
-
 void bench(std::string bench_kind){
   bool time = true;
   auto copy = getCopyFunc();
@@ -234,7 +226,7 @@ void bench(std::string bench_kind){
     taco_tensor_t* a2 = img_t2.getStorage();
     taco_tensor_t* a3 = roi_t.getStorage();
 
-    std::cout << index << "," << bench_kind << "," << total_vals << "," << total_bytes << ",";
+    outputFile << index << "," << bench_kind << "," << total_vals << "," << total_bytes << ",";
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
     }, "Compute", repetitions, outputFile);

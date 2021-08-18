@@ -218,3 +218,12 @@ std::string to_string(Kind k){
   }
   return "";
 }
+
+void writeHeader(std::ostream& os, int repetitions){
+  os << "index,kind,total_vals,total_bytes,mean,stddev,median,";
+  for (int i=0; i<repetitions-1; i++){
+    os << i << ","; 
+  }
+  os << repetitions-1;
+  os << std::endl;
+}
