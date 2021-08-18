@@ -238,7 +238,7 @@ void bench(std::string bench_kind){
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
     }, "Compute", repetitions, outputFile);
-    std::cout << std::endl;
+    outputFile << std::endl;
 
     out.compute();
 
