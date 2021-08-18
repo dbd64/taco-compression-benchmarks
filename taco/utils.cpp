@@ -197,7 +197,8 @@ std::pair<int,int> count_bytes_vals(Tensor<uint8_t> t, Kind kind){
     int numVals = 0;
     int numBytes = t.getStorage().getValues().getSize();
     uint8_t* raw_bytes = (uint8_t*) t.getStorage().getValues().getData();
-    std::vector raw(raw_bytes, raw_bytes + numBytes);
+    std::vector<uint8_t> raw;
+    raw.assign(raw_bytes, raw_bytes + numBytes);
     unpackLZ77_bytes(raw, numVals);
     return {numBytes, numVals};
   } else if (kind == Kind::SPARSE){
