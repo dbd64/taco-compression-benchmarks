@@ -187,10 +187,25 @@ void bench(std::string bench_kind){
     f = Format{LZ77};
   }
 
-  std::ofstream outputFile(getOutputPath() + to_string(kind) + "_mri.csv");
+  auto start_str = getEnvVar("IMAGE_START");
+  if (start_str == "") {
+    std::cout << "No start" << std::endl;
+    return;
+  }
+  auto end_str = getEnvVar("IMAGE_END");
+  if (end_str == "") {
+    std::cout << "No end" << std::endl;
+    return;
+  }
+
+  int start = std::stoi(start_str);
+  int end = std::stoi(end_str);
+  int numFrames = end - (start-1);
+
+  std::ofstream outputFile(getOutputPath() + to_string(kind) + "_" + start_str + "_" + end_str + "_mri.csv");
   writeHeader(outputFile, repetitions);
 
-  for (int index=1; index<=253; index++){
+  for (int index=start; index<=end; index++){
     int w = 0;
     int h = 0;
     int t1_num_vals = 0;
