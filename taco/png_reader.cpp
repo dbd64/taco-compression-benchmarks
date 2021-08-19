@@ -149,17 +149,14 @@ std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals){
       if (dist < run){
         for (size_t j = i-dist; j<i; j++){
           out.push_back(bytes[j]);
-          numVals++;
         }
         size_t start = out.size()-dist;
         for (size_t j = 0; j<(run-dist); j++){
           out.push_back(out[start + j]);
-          numVals++;
         }
       } else {
         for (size_t j = i-dist; j < i-dist+run; j++){
           out.push_back(bytes[j]);
-          numVals++;
         }
       }
       i+=4;
