@@ -92,8 +92,6 @@ void movie_mask_bench(){
 
  int repetitions = 100;
 
- std::cout << "index,kind,total_bytes,total_vals,mean,stddev,median,out_size" << std::endl;
-
  auto bench_kind = getEnvVar("BENCH_KIND");
  Kind kind;
  Format f;
@@ -137,6 +135,20 @@ void movie_mask_bench(){
     return;
   }
 
+  std::string f1_temp = folder1;
+  f1_temp.pop_back();
+  auto found = f1_temp.find_last_of("/\\");
+  f1_temp = f1_temp.substr(found+1);
+  std::string f2_temp = folder2;
+  f2_temp.pop_back();
+  found = f2_temp.find_last_of("/\\");
+  f2_temp = f2_temp.substr(found+1);
+
+  std::string name = "movie_mask_" + to_string(kind) + "-" + f1_temp + "-" + f2_temp + "-" + start_str + "-" + end_str + ".csv";
+  name = getOutputPath() + name;
+  std::ofstream outputFile(name);
+  std::cout << "Starting " << name << std::endl;
+  writeHeader(outputFile, repetitions);
 
   for (int index=start; index<=end; index++){
     int w = 0;
@@ -169,22 +181,22 @@ void movie_mask_bench(){
     taco_tensor_t* a2 = f2t.getStorage();
     taco_tensor_t* a3 = mt.getStorage();
 
-    std::cout << index << "," << bench_kind << "," << f1.second + f2.second + m.second  << "," << f1_vals + f2_vals + m_vals << ",";
+    outputFile << index << "," << bench_kind << "," << f1.second + f2.second + m.second  << "," << f1_vals + f2_vals + m_vals << ",";
     TOOL_BENCHMARK_REPEAT({
         k.compute(a0,a1,a2,a3);
-    }, "Compute", repetitions, std::cout);
+    }, "Compute", repetitions, outputFile);
 
-    out.compute();
-    std::cout << "," << out.getStorage().getValues().getSize() << std::endl;
-    // out.printComputeIR(std::cout);
+    // out.compute();
+    outputFile << std::endl;
+    // outputFile << "," << out.getStorage().getValues().getSize() << std::endl;
 
-    saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
-    saveValidation(f2t, kind, w, h, false, bench_kind, index, "f2");
-    if (kind == Kind::LZ77){
-      saveValidation(mt,  kind, w, h, true, bench_kind, index, "mask");
-    } else {
-      saveValidation(mt,  kind, w, h, bench_kind, index, "mask", true);
-    }
-    saveValidation(out, kind, w, h, false, bench_kind, index, "out");
+    // saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
+    // saveValidation(f2t, kind, w, h, false, bench_kind, index, "f2");
+    // if (kind == Kind::LZ77){
+    //   saveValidation(mt,  kind, w, h, true, bench_kind, index, "mask");
+    // } else {
+    //   saveValidation(mt,  kind, w, h, bench_kind, index, "mask", true);
+    // }
+    // saveValidation(out, kind, w, h, false, bench_kind, index, "out");
   }
 }
