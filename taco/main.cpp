@@ -6,6 +6,7 @@ void mri_bench();
 void movie_alpha_bench();
 void movie_mask_bench();
 void movie_subtitle_bench();
+void movie_brighten_bench();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -21,6 +22,8 @@ int main(){
         movie_mask_bench();
     } else if (bench == "subtitle"){
         movie_subtitle_bench();
+    } else if (bench == "mbrighten"){
+        movie_brighten_bench();
     }
     return 0;
 }
