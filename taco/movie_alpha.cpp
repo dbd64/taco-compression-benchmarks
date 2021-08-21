@@ -112,46 +112,49 @@ void movie_alpha_bench(){
   name = getOutputPath() + name;
   std::ofstream outputFile(name);
   std::cout << "Starting " << name << std::endl;
+
+  // std::ostream& outputFile = std::cout;
   writeHeader(outputFile, repetitions);
 
- for (int index=start; index<=end; index++){
-   std::cout << "movie_alpha: " << index <<  std::endl; 
-   int w = 0;
-   int h = 0;
-   int f1_num_vals = 0;
-   int f2_num_vals = 0;
-   auto f1 = read_movie_frame(folder1, "l", index, kind, w, h, f1_num_vals);
-   auto f2 = read_movie_frame(folder2, "r", index, kind, w, h, f2_num_vals);
-   auto dims = f1.first.getDimensions();
+  for (int index=start; index<=end; index++){
+    std::cout << "movie_alpha: " << index <<  std::endl; 
+    int w = 0;
+    int h = 0;
+    int f1_num_vals = 0;
+    int f2_num_vals = 0;
+    auto f1 = read_movie_frame(folder1, "l", index, kind, w, h, f1_num_vals);
+    auto f2 = read_movie_frame(folder2, "r", index, kind, w, h, f2_num_vals);
+    auto dims = f1.first.getDimensions();
 
-   auto f1t = f1.first;
-   auto f2t = f2.first;
+    auto f1t = f1.first;
+    auto f2t = f2.first;
 
-   Tensor<uint8_t> out("out", dims, f);
-   IndexStmt stmt;
-   if (kind == Kind::LZ77){
-     stmt = (out(i) = Blend_lz(f1t(i), f2t(i)));
-   } else {
-     stmt = (out(i,j,c) = Blend(f1t(i,j,c),f2t(i,j,c)));
-   }
-   out.setAssembleWhileCompute(true);
-   out.compile();
-   Kernel k = getKernel(stmt, out);
+    Tensor<uint8_t> out("out", dims, f);
+    IndexStmt stmt;
+    if (kind == Kind::LZ77){
+      stmt = (out(i) = Blend_lz(f1t(i), f2t(i)));
+    } else {
+      stmt = (out(i,j,c) = Blend(f1t(i,j,c),f2t(i,j,c)));
+    }
+    out.setAssembleWhileCompute(true);
+    out.compile();
+    Kernel k = getKernel(stmt, out);
 
-   taco_tensor_t* a0 = out.getStorage();
-   taco_tensor_t* a1 = f1t.getStorage();
-   taco_tensor_t* a2 = f2t.getStorage();
+    taco_tensor_t* a0 = out.getStorage();
+    taco_tensor_t* a1 = f1t.getStorage();
+    taco_tensor_t* a2 = f2t.getStorage();
 
-   outputFile << index << "," << bench_kind << "," << f1_num_vals + f2_num_vals << "," << f1.second + f2.second  << ",";
-   TOOL_BENCHMARK_REPEAT({
-       k.compute(a0,a1,a2);
-   }, "Compute", repetitions, outputFile);
-   outputFile << std::endl;
+    outputFile << index << "," << bench_kind << "," << f1_num_vals + f2_num_vals << "," << f1.second + f2.second  << ",";
+    TOOL_BENCHMARK_REPEAT({
+        k.compute(a0,a1,a2);
+    }, "Compute", repetitions, outputFile);
 
-  //  out.compute();
+    out.compute();
+    auto count = count_bytes_vals(out, kind);
+    outputFile << count.first << "," << count.second << std::endl;
 
-  //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
-  //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");
-  //  saveValidation(out, kind, w, h, false, bench_kind, index, "out");
- }
+    //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
+    //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");
+    // saveValidation(out, kind, w, h, false, bench_kind, index, "out");
+  }
 }

@@ -8,9 +8,26 @@ std::vector<uint8_t> raw_image_ma(std::string filename, int& w, int& h){
    unsigned width = 0, height = 0;
 
    unsigned error = lodepng::load_file(png, filename);
-   if(!error) error = decode(image, compressed, pos, width, height, png, LCT_RGB);
+   if(!error) error = decode(image, compressed, pos, width, height, png, LCT_RGB); // LCT_GREY_ALPHA
 
-   if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+   if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << " -- " << filename << std::endl;
+
+   w = (int)width;
+   h = (int)height;
+   return std::move(image);
+}
+
+std::vector<uint8_t> raw_image_subtitle(std::string filename, int& w, int& h){
+   std::vector<unsigned char> png;
+   std::vector<unsigned char> image; //the raw pixels
+   std::vector<unsigned char> compressed;
+   std::vector<int> pos;
+   unsigned width = 0, height = 0;
+
+   unsigned error = lodepng::load_file(png, filename);
+   if(!error) error = decode(image, compressed, pos, width, height, png, LCT_GREY_ALPHA);
+
+   if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << " -- " << filename << std::endl;
 
    w = (int)width;
    h = (int)height;
@@ -133,6 +150,26 @@ std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std:
  return to_tensor_rgb(image,h,w,index,prefix+"f" + std::to_string(index) + "_", kind, numVals);
 }
 
+std::pair<Tensor<uint8_t>, Tensor<uint8_t>> read_subtitle_mask(Kind kind, int width, int height, int& maskBytes, int& maskVals, int& imgBytes, int& imgVals){
+  std::string path = "/data/scratch/danielbd/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
+  auto image = raw_image_subtitle(path, width, height);
+  std::vector<uint8_t> mask;
+  std::vector<uint8_t> img;
+  for (int i=0; i< image.size(); i++){
+    if (i%2 == 0){
+      img.push_back(image[i]);
+    } else {
+      mask.push_back(image[i] ? 1 : 0);
+    }
+  }
+  auto img_t = to_tensor(img, height, width, 0, "subtitle_img", kind, imgVals);
+  imgBytes = img_t.second;
+  auto mask_t = to_tensor(mask, height, width, 0, "mask_img", kind, maskVals);
+  imgBytes = img_t.second;
+
+  return {img_t.first, mask_t.first};
+}
+
 uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int width, int height){
   std::vector<unsigned char> png_mine;
   auto error = lodepng::encode(png_mine, valsVec, width, height, LCT_GREY);
@@ -144,6 +181,7 @@ uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int wi
 uint32_t saveTensor_RGB(std::vector<unsigned char> valsVec, std::string path, int width, int height){
   std::vector<unsigned char> png_mine;
   auto error = lodepng::encode(png_mine, valsVec, width, height, LCT_RGB);
+  std::cout << "Saving to path: " << path << std::endl;
   if(!error) lodepng::save_file(png_mine, path);
   if(error) std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
   return error;
@@ -225,5 +263,6 @@ void writeHeader(std::ostream& os, int repetitions){
     os << i << ","; 
   }
   os << repetitions-1;
+  os << "out_bytes,out_vals";
   os << std::endl;
 }
