@@ -146,7 +146,7 @@ void movie_subtitle_bench(){
 
     outputFile << index << "," << bench_kind << "," << f1_num_vals + maskVals + imgVals << "," << frame_res.second + maskBytes + imgBytes << ",";
     TOOL_BENCHMARK_REPEAT({
-        k.compute(a0,a1,a2);
+        k.compute(a0,a1,a2,a3);
     }, "Compute", repetitions, outputFile);
 
     out.compute();

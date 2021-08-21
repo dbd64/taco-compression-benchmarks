@@ -159,7 +159,7 @@ std::pair<Tensor<uint8_t>, Tensor<uint8_t>> read_subtitle_mask(Kind kind, int wi
     if (i%2 == 0){
       img.push_back(image[i]);
     } else {
-      mask.push_back(image[i] ? 1 : 0);
+      mask.push_back(image[i] ? 0 : 1);
     }
   }
   auto img_t = to_tensor(img, height, width, 0, "subtitle_img", kind, imgVals);
