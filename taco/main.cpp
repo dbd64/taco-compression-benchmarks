@@ -10,6 +10,7 @@ void movie_brighten_bench();
 void bench_spmv();
 void movie_decompress_bench();
 void movie_compress_bench_brighten();
+void movie_compress_bench_subtitle();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -34,7 +35,7 @@ int main(){
     } else if (bench == "brighten_compress"){
         movie_compress_bench_brighten();
     } else if (bench == "subtitle_compress"){
-        // movie_compress_bench_brighten();
+        movie_compress_bench_subtitle();
     }
     return 0;
 }

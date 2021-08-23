@@ -187,22 +187,27 @@ void encode_rle(const uint8_t* in, const int insize, uint8_t*& out, int& outsize
   }
 }
 
-Func getBrightenFunc(uint8_t brightness, bool full){
-  auto brighten = [=](const std::vector<ir::Expr>& v) {
-      auto sum = ir::Add::make(v[0], brightness);
-      return ternaryOp(ir::Gt::make(sum, 255), 255, sum);
-  };
-  auto algFunc = [=](const std::vector<IndexExpr>& v) {
-      auto l = Region(v[0]);
-      if (full){
-        return IterationAlgebra(Union(l, Complement(l)));
-      } else {
-        return IterationAlgebra(l);
-      }
-  };
-  Func plus_("plus_", brighten, algFunc);
-  return plus_;
-}
+struct MaskOp {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    taco_iassert(v.size() == 3) << "Requires 3 arguments (img1, img2, mask)";
+    return ir::Add::make(ir::Mul::make(v[2], v[0]), ir::Mul::make(ir::Neg::make(ir::Cast::make(v[2], Bool)), v[1]));
+  }
+};
+
+struct unionAlgebra {
+ IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+   if (regions.size() == 2){
+     return Union(regions[0], regions[1]);
+   }
+   auto t = Union(regions[0], regions[1]);
+   for (int i=2; i< regions.size(); i++){
+     t = Union(t, regions[i]);
+   }
+   return t;
+ }
+};
+
+Func Mask("mask", MaskOp(), unionAlgebra());
 
 void writeHeaderRecompress(std::ostream& os, int repetitions){
   os << "index,kind,mean,stddev,median,";
@@ -213,10 +218,9 @@ void writeHeaderRecompress(std::ostream& os, int repetitions){
 }
 }
 
-void movie_compress_bench_brighten(){
+void movie_compress_bench_subtitle(){
   bool time = true;
   auto copy = getCopyFunc();
-  auto brighten = getBrightenFunc(20, true);
   taco::util::TimeResults timevalue{};
   const IndexVar i("i"), j("j"), c("c");
 
@@ -255,7 +259,7 @@ void movie_compress_bench_brighten(){
   auto found = f1_temp.find_last_of("/\\");
   f1_temp = f1_temp.substr(found+1);
 
-  std::string name = "movie_recompress_brighten_" + to_string(kind) + "-" + f1_temp  + "-" + start_str + "-" + end_str + ".csv";
+  std::string name = "movie_recompress_subtitle_" + to_string(kind) + "-" + f1_temp  + "-" + start_str + "-" + end_str + ".csv";
   name = getOutputPath() + name;
   std::ofstream outputFile(name);
   std::cout << "Starting " << name << std::endl;
@@ -265,13 +269,21 @@ void movie_compress_bench_brighten(){
     int w = 0;
     int h = 0;
     int f1_num_vals = 0;
+    int maskBytes = 0;
+    int maskVals = 0;
+    int imgBytes = 0;
+    int imgVals = 0;
+
     auto frame_res = read_movie_frame(folder1, "frame", index, Kind::DENSE, w, h, f1_num_vals);
+    auto mask_res = read_subtitle_mask(Kind::DENSE, w, h, maskBytes, maskVals, imgBytes, imgVals);
     auto dims = frame_res.first.getDimensions();
 
     auto frame = frame_res.first;
+    auto subtitle = mask_res.first;
+    auto mask = mask_res.second;
 
     Tensor<uint8_t> out("out", dims, {Dense,Dense,Dense});
-    IndexStmt stmt = (out(i,j,c) = brighten(frame(i,j,c)));
+    IndexStmt stmt = (out(i,j,c) = Mask(frame(i,j,c), subtitle(i,j), mask(i,j)));
     out.compile();
     out.assemble();
     out.compute();
