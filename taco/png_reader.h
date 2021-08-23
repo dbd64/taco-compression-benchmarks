@@ -31,6 +31,16 @@ using namespace taco;
     }                                                            \
 }
 
+#define TOOL_BENCHMARK_REPEAT_WARM(CODE, NAME, REPEAT, STREAM) { \
+    if (time) {                                                  \
+      TACO_TIME_REPEAT(CODE,REPEAT,timevalue,false);             \
+      STREAM << timevalue;                                       \
+    }                                                            \
+    else {                                                       \
+      CODE;                                                      \
+    }                                                            \
+}
+
 #define TOOL_BENCHMARK_TIMER(CODE,NAME,TIMER) {                  \
     if (time) {                                                  \
       taco::util::Timer timer;                                   \

@@ -34,6 +34,24 @@ std::vector<uint8_t> raw_image_subtitle(std::string filename, int& w, int& h){
    return std::move(image);
 }
 
+std::vector<uint8_t> raw_image_grey(std::string filename, int& w, int& h){
+   std::vector<unsigned char> png;
+   std::vector<unsigned char> image; //the raw pixels
+   std::vector<unsigned char> compressed;
+   std::vector<int> pos;
+   unsigned width = 0, height = 0;
+
+   unsigned error = lodepng::load_file(png, filename);
+   if(!error) error = decode(image, compressed, pos, width, height, png, LCT_GREY);
+
+   if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << " -- " << filename << std::endl;
+
+   w = (int)width;
+   h = (int)height;
+   return std::move(image);
+}
+
+
 std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
                                             int index, std::string prefix, Kind kind, int& numVals){
  if (kind == Kind::DENSE){
@@ -131,6 +149,51 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
     t.pack();
     numVals = t.getStorage().getValues().getSize();
     return {t, t.getStorage().getValues().getSize()*5};
+  }
+}
+
+std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h, int w, 
+                                             int index, std::string prefix, Kind kind, int& numVals, int sparseVal){
+  if (kind == Kind::DENSE){
+    auto t = makeDense_2(prefix+"dense_" + std::to_string(index), {h,w}, image);
+    numVals = h*w;
+    return {t, h*w};
+  } else if (kind == Kind::LZ77){
+    // TODO!
+    // auto pr = encode_lz77(image);
+    // auto packed = pr.first;
+    // numVals = pr.second;
+    // auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
+    //                       {h*w},
+    //                       {0, (int)packed.size()}, packed);
+    // return {t, packed.size()};
+  } else if (kind == Kind::SPARSE){
+    Tensor<int> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
+    for (int row=0; row<h; row++){
+      for (int col=0; col<w; col++){
+        if (image[row*w + col] != sparseVal){
+            t(row,col) = image[row*w + col];
+        }
+      }
+    }
+    t.pack();
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*2};
+  } else if (kind == Kind::RLE){
+    Tensor<int> t{prefix+"rle_" + std::to_string(index), {h,w}, {Dense,RLE}, 0};
+    uint8_t curr = image[0];
+    t(0,0) = curr;
+    for (int row=0; row<h; row++){
+      for (int col=0; col<w; col++){
+        if (image[row*w + col] != curr){
+          curr = image[row*w + col];
+          t(row,col) = curr;
+        }
+      }
+    }
+    t.pack();
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*2};
   }
 }
 
@@ -262,7 +325,7 @@ void writeHeader(std::ostream& os, int repetitions){
   for (int i=0; i<repetitions-1; i++){
     os << i << ","; 
   }
-  os << repetitions-1;
+  os << repetitions-1 << ",";
   os << "out_bytes,out_vals";
   os << std::endl;
 }

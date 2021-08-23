@@ -15,10 +15,10 @@
 
 using namespace taco;
 
-struct BlendOp {
+struct MaskOp {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
-    taco_iassert(v.size() == 2) << "Requires 2 arguments";
-    return ir::Add::make(ir::Mul::make(0.7, v[0]), ir::Mul::make(0.3, v[1]));
+    taco_iassert(v.size() == 3) << "Requires 3 arguments (img1, img2, mask)";
+    return ir::Add::make(ir::Mul::make(v[2], v[0]), ir::Mul::make(ir::Neg::make(ir::Cast::make(v[2], Bool)), v[1]));
   }
 };
 
@@ -45,10 +45,12 @@ struct universeAlgebra {
  }
 };
 
-Func Blend("blend", BlendOp(), unionAlgebra());
-Func Blend_lz("blend_lz", BlendOp(), universeAlgebra());
+namespace {
+Func Mask("mask", MaskOp(), unionAlgebra());
+Func Mask_lz("mask_lz", MaskOp(), universeAlgebra());
+}
 
-void movie_alpha_bench(){
+void movie_decompress_bench(){
  bool time = true;
  auto copy = getCopyFunc();
  taco::util::TimeResults timevalue{};
@@ -59,18 +61,12 @@ void movie_alpha_bench(){
  auto bench_kind = getEnvVar("BENCH_KIND");
  Kind kind;
  Format f;
- if (bench_kind == "DENSE") {
-   kind = Kind::DENSE;
-   f = Format{Dense,Dense,Dense};
- } else if (bench_kind == "SPARSE"){
-   kind = Kind::SPARSE;
-   f = Format{Dense,Sparse,Dense};
- } else if (bench_kind == "RLE"){
+ if (bench_kind == "RLE"){
    kind = Kind::RLE;
-   f = Format{Dense,RLE_size(3),Dense};
+   f = Format{Dense,Dense,Dense};
  } else if (bench_kind == "LZ77"){
    kind = Kind::LZ77;
-   f = Format{LZ77};
+   f = Format{Dense};
  }
 
   auto start_str = getEnvVar("IMAGE_START");
@@ -88,14 +84,9 @@ void movie_alpha_bench(){
   int end = std::stoi(end_str);
   int numFrames = end - (start-1);
 
-  auto folder1 = getEnvVar("FOLDER1");
+  auto folder1 = getEnvVar("FOLDER");
   if (folder1 == "") {
     std::cout << "No folder1" << std::endl;
-    return;
-  }
-  auto folder2 = getEnvVar("FOLDER2");
-  if (folder2 == "") {
-    std::cout << "No folder2" << std::endl;
     return;
   }
 
@@ -103,12 +94,8 @@ void movie_alpha_bench(){
   f1_temp.pop_back();
   auto found = f1_temp.find_last_of("/\\");
   f1_temp = f1_temp.substr(found+1);
-  std::string f2_temp = folder2;
-  f2_temp.pop_back();
-  found = f2_temp.find_last_of("/\\");
-  f2_temp = f2_temp.substr(found+1);
 
-  std::string name = "movie_alpha_" + to_string(kind) + "-" + f1_temp + "-" + f2_temp + "-" + start_str + "-" + end_str + ".csv";
+  std::string name = "movie_decompress_dense_" + to_string(kind) + "-" + f1_temp + "-" + start_str + "-" + end_str + ".csv";
   name = getOutputPath() + name;
   std::ofstream outputFile(name);
   std::cout << "Starting " << name << std::endl;
@@ -117,41 +104,44 @@ void movie_alpha_bench(){
   writeHeader(outputFile, repetitions);
 
   for (int index=start; index<=end; index++){
-    std::cout << "movie_alpha: " << index <<  std::endl; 
+    std::cout << "movie_decompress: " << index <<  std::endl; 
     int w = 0;
     int h = 0;
     int f1_num_vals = 0;
-    int f2_num_vals = 0;
-    auto f1 = read_movie_frame(folder1, "l", index, kind, w, h, f1_num_vals);
-    auto f2 = read_movie_frame(folder2, "r", index, kind, w, h, f2_num_vals);
-    auto dims = f1.first.getDimensions();
+    int maskBytes = 0;
+    int maskVals = 0;
+    int imgBytes = 0;
+    int imgVals = 0;
 
-    auto f1t = f1.first;
-    auto f2t = f2.first;
+    auto frame_res = read_movie_frame(folder1, "frame", index, kind, w, h, f1_num_vals);
+    auto dims = frame_res.first.getDimensions();
+
+    auto frame = frame_res.first;
 
     Tensor<uint8_t> out("out", dims, f);
     IndexStmt stmt;
     if (kind == Kind::LZ77){
-      stmt = (out(i) = Blend_lz(f1t(i), f2t(i)));
+      stmt = (out(i) = copy(frame(i)));
     } else {
-      stmt = (out(i,j,c) = Blend(f1t(i,j,c),f2t(i,j,c)));
+      stmt = (out(i,j,c) = copy(frame(i,j,c)));
     }
     out.setAssembleWhileCompute(true);
     out.compile();
     Kernel k = getKernel(stmt, out);
 
     taco_tensor_t* a0 = out.getStorage();
-    taco_tensor_t* a1 = f1t.getStorage();
-    taco_tensor_t* a2 = f2t.getStorage();
+    taco_tensor_t* a1 = frame.getStorage();
 
-    outputFile << index << "," << bench_kind << "," << f1_num_vals + f2_num_vals << "," << f1.second + f2.second  << ",";
+    outputFile << index << "," << bench_kind << "," << f1_num_vals + maskVals + imgVals << "," << frame_res.second + maskBytes + imgBytes << ",";
     TOOL_BENCHMARK_REPEAT({
-        k.compute(a0,a1,a2);
+        k.compute(a0,a1);
     }, "Compute", repetitions, outputFile);
 
     out.compute();
     auto count = count_bytes_vals(out, kind);
     outputFile << "," << count.first << "," << count.second << std::endl;
+
+    out.printComputeIR(std::cout);
 
     //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
     //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");

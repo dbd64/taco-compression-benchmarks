@@ -151,7 +151,7 @@ void movie_subtitle_bench(){
 
     out.compute();
     auto count = count_bytes_vals(out, kind);
-    outputFile << count.first << "," << count.second << std::endl;
+    outputFile << "," << count.first << "," << count.second << std::endl;
 
     //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
     //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");
