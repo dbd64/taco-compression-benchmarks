@@ -13,6 +13,9 @@
 #include "codegen/codegen.h"
 #include "png_reader.h"
 
+#define ALWAYS_INLINE __attribute__((always_inline))
+// #define ALWAYS_INLINE 
+
 using namespace taco;
 namespace{
 void writeHeaderRecompress(std::ostream& os, int repetitions){
@@ -182,7 +185,7 @@ void lz77_to_rle(const uint8_t* in, const int insize, uint8_t*& out, int& outsiz
           }
           size_t start = outsize-dist;
           for (size_t j = 0; j<(run-dist); j++){
-            out[outsize++] = in[start+j];
+            out[outsize++] = out[start+j];
             crd[crdsize++] = curr_crd++;
           }
         } else {
@@ -197,7 +200,7 @@ void lz77_to_rle(const uint8_t* in, const int insize, uint8_t*& out, int& outsiz
   }
 }
 
-__attribute__((always_inline))
+ALWAYS_INLINE
 void set_uint16(uint8_t*& out, int& outsize, int& outcap, const int index, uint16_t value){
   uint8_t bytes[sizeof(value)];
   memcpy(bytes, &value, sizeof(value));
@@ -206,28 +209,32 @@ void set_uint16(uint8_t*& out, int& outsize, int& outcap, const int index, uint1
   out[index + 1] = bytes[1];
 }
 
-__attribute__((always_inline))
-void next_defined(int&i, int &j, int& jbPos, int* __restrict__ B2_pos, int* __restrict__ B2_crd){
+ALWAYS_INLINE
+void next_defined(int&i, int &j, int& jbPos, int* __restrict__ B2_pos, int* __restrict__ B2_crd, int B1_dimension){
   if (++jbPos < B2_pos[i+1]){
     j = B2_crd[jbPos];
   } else {
     i++;
-    while(B2_pos[i] == B2_pos[i+1] ){
+    while(i < B1_dimension && B2_pos[i] == B2_pos[i+1] ){
       i++;
     }
-    jbPos = B2_pos[i];
-    j = B2_crd[jbPos];
+    if (i == B1_dimension){
+      j = 0;
+    } else {
+      jbPos = B2_pos[i];
+      j = B2_crd[jbPos];
+    }
   }
 }
 
-__attribute__((always_inline))
-void push_defined_value(uint8_t*& out, int& outsize, int& outcap, const int i, const int j, const int B2_dimension, uint8_t* __restrict__ B_vals){
+ALWAYS_INLINE
+void push_defined_value(uint8_t*& out, int& outsize, int& outcap, int& jbPos, const int i, const int j, const int B2_dimension, uint8_t* __restrict__ B_vals){
   if (outsize+5 >= outcap-1){
     outcap = (outsize+3)*2;
     out = (uint8_t*)realloc((void*)out, outcap);
   }
   set_uint16(out, outsize, outcap, outsize, 3); // Set the count to three
-  int32_t pos = 3*(i * B2_dimension + j);
+  int32_t pos = 3*(jbPos);
   for (int c=0; c<3; c++){
     out[outsize++] = B_vals[pos++];
   }
@@ -257,8 +264,8 @@ void rle_to_lz77(taco_tensor_t *B, uint8_t*& out, int& outsize){
   while (i*B2_dimension + j < B1_dimension * B2_dimension){
     int curr_i = i;
     int curr_j = j;
-    push_defined_value(out, outsize, outcap, i, j, B2_dimension, B_vals);
-    next_defined(i, j, jbPos, B2_pos, B2_crd);
+    push_defined_value(out, outsize, outcap, jbPos, i, j, B2_dimension, B_vals);
+    next_defined(i, j, jbPos, B2_pos, B2_crd, B1_dimension);
     int run = ((i*B2_dimension + j) - (curr_i*B2_dimension + curr_j + 1))*3;
     while (run){
       int curr_run = run;
@@ -274,7 +281,7 @@ void rle_to_lz77(taco_tensor_t *B, uint8_t*& out, int& outsize){
       set_uint16(out, outsize, outcap, outsize+2, 3);
       outsize+=4;
       if (run){
-        push_defined_value(out, outsize, outcap, curr_i, curr_j, B2_dimension, B_vals);
+        push_defined_value(out, outsize, outcap, jbPos, curr_i, curr_j, B2_dimension, B_vals);
         run-=3;
       }
     }
