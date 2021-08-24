@@ -11,6 +11,9 @@ void bench_spmv();
 void movie_decompress_bench();
 void movie_compress_bench_brighten();
 void movie_compress_bench_subtitle();
+void movie_lz77_rle();
+void movie_rle_lz77_bench_brighten();
+void movie_rle_lz77_bench_subtitle();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -36,6 +39,12 @@ int main(){
         movie_compress_bench_brighten();
     } else if (bench == "subtitle_compress"){
         movie_compress_bench_subtitle();
-    }
+    } else if (bench == "lz77_rle"){
+        movie_lz77_rle();
+    } else if (bench == "lz77_rle_brighten"){
+        movie_rle_lz77_bench_brighten();
+    } else if (bench == "lz77_rle_subtitle"){
+        movie_rle_lz77_bench_brighten();
+    } 
     return 0;
 }

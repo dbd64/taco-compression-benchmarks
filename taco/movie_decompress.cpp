@@ -15,41 +15,6 @@
 
 using namespace taco;
 
-struct MaskOp {
-  ir::Expr operator()(const std::vector<ir::Expr> &v) {
-    taco_iassert(v.size() == 3) << "Requires 3 arguments (img1, img2, mask)";
-    return ir::Add::make(ir::Mul::make(v[2], v[0]), ir::Mul::make(ir::Neg::make(ir::Cast::make(v[2], Bool)), v[1]));
-  }
-};
-
-struct unionAlgebra {
- IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
-   if (regions.size() == 2){
-     return Union(regions[0], regions[1]);
-   }
-   auto t = Union(regions[0], regions[1]);
-   for (int i=2; i< regions.size(); i++){
-     t = Union(t, regions[i]);
-   }
-   return t;
- }
-};
-
-struct universeAlgebra {
- IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
-   auto t = Union(regions[0], Complement(regions[0]));
-   for (int i=1; i< regions.size(); i++){
-     t = Union(t, Union(regions[i], Complement(regions[i])));
-   }
-   return t;
- }
-};
-
-namespace {
-Func Mask("mask", MaskOp(), unionAlgebra());
-Func Mask_lz("mask_lz", MaskOp(), universeAlgebra());
-}
-
 void movie_decompress_bench(){
  bool time = true;
  auto copy = getCopyFunc();
