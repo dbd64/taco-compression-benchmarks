@@ -138,10 +138,10 @@ void movie_decompress_bench(){
     }, "Compute", repetitions, outputFile);
 
     out.compute();
-    auto count = count_bytes_vals(out, kind);
+    auto count = count_bytes_vals(out, Kind::DENSE);
     outputFile << "," << count.first << "," << count.second << std::endl;
 
-    out.printComputeIR(std::cout);
+    // out.printComputeIR(std::cout);
 
     //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
     //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");

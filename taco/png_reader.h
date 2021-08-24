@@ -81,7 +81,7 @@ Kernel getKernel(IndexStmt indexStmt, Tensor<uint8_t> t);
 std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind);
 std::pair<Tensor<uint8_t>, size_t> read_rgb_png(int i, Kind kind);
 
-std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals);
+std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals, bool unpack = true);
 
 uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path);
 

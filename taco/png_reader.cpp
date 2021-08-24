@@ -128,7 +128,7 @@ unsigned decode(std::vector<unsigned char>& out, std::vector<unsigned char>& c_o
   return decode(out, c_out, pos, w, h, in.empty() ? 0 : &in[0], (unsigned)in.size(), colortype, bitdepth);
 }
 
-std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals){
+std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals, bool unpack){
   // 0 XXXXXXX XXXXXXXX     -> read X number of bytes
   // 1 XXXXXXX XXXXXXXX Y Y -> X is the run length, Y is the distance
 
@@ -139,28 +139,29 @@ std::vector<uint8_t> unpackLZ77_bytes(std::vector<uint8_t> bytes, int& numVals){
       uint16_t numBytes = *((uint16_t *) &bytes[i]);
       i+=2;
       for(int j=0; j<numBytes; j++){
-        out.push_back(bytes[i+j]);
+        if (unpack) out.push_back(bytes[i+j]);
         numVals++;
       }
       i+=numBytes;
     } else  {
       uint16_t dist = *((uint16_t *) &bytes[i+2]);
       uint16_t run = *((uint16_t *) &bytes[i]) & (uint16_t)0x7FFF;
-      if (dist < run){
-        for (size_t j = i-dist; j<i; j++){
-          out.push_back(bytes[j]);
-        }
-        size_t start = out.size()-dist;
-        for (size_t j = 0; j<(run-dist); j++){
-          out.push_back(out[start + j]);
-        }
-      } else {
-        for (size_t j = i-dist; j < i-dist+run; j++){
-          out.push_back(bytes[j]);
+      if (unpack){
+        if (dist <= run){
+          for (size_t j = i-dist; j<i; j++){
+            out.push_back(bytes[j]);
+          }
+          size_t start = out.size()-dist;
+          for (size_t j = 0; j<(run-dist); j++){
+            out.push_back(out[start + j]);
+          }
+        } else {
+          for (size_t j = i-dist; j < i-dist+run; j++){
+            out.push_back(bytes[j]);
+          }
         }
       }
       i+=4;
-
     }
   }
   return out;
