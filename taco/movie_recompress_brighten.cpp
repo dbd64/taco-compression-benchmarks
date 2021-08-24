@@ -54,9 +54,9 @@ std::pair<int,int> find_match(const int in_idx, const int out_idx, const int sta
 }
 
 __attribute__((always_inline))
-void push_uint16(uint8_t* out, int& outsize, int& outcap, uint16_t value){
-  if (outsize >= outcap){
-    outcap *= 2;
+void push_uint16(uint8_t*& out, int& outsize, int& outcap, uint16_t value){
+  if (outsize+2 >= outcap-1){
+    outcap = (outsize+2)*2;
     out = (uint8_t*)realloc((void*)out, outcap);
   }
   uint8_t bytes[sizeof(value)];
@@ -67,7 +67,7 @@ void push_uint16(uint8_t* out, int& outsize, int& outcap, uint16_t value){
 }
 
 __attribute__((always_inline))
-void set_uint16(uint8_t* out, int& outsize, int& outcap, const int index, uint16_t value){
+void set_uint16(uint8_t*& out, int& outsize, int& outcap, const int index, uint16_t value){
   uint8_t bytes[sizeof(value)];
   memcpy(bytes, &value, sizeof(value));
 
@@ -136,8 +136,8 @@ void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsi
         // }
         int outindex = outsize;
         outsize+=max;
-        if (outsize >= outcap){
-          outcap = outcap*2;
+        if (outsize >= outcap-1){
+          outcap = outsize*2;
           out = (uint8_t*)realloc((void*)out, outcap);
         }
         while( max ) {
