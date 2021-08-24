@@ -277,7 +277,6 @@ void movie_compress_bench_brighten(){
     out.compute();
 
     auto denseVals = out.getStorage().getValues();
-    // std::vector<uint8_t> vals((uint8_t*)denseVals.getData(), (uint8_t*)denseVals.getData() + denseVals.getSize());
     int insize = denseVals.getSize();
     uint8_t* in  = (uint8_t*)denseVals.getData();
     std::cout << "in size: " << insize << std::endl;
@@ -300,5 +299,6 @@ void movie_compress_bench_brighten(){
           benchmark::DoNotOptimize(crd);
       }, "Compute", repetitions, outputFile);
     }
+    outputFile << std::endl;
   }
 }

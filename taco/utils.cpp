@@ -220,17 +220,38 @@ std::pair<Tensor<uint8_t>, Tensor<uint8_t>> read_subtitle_mask(Kind kind, int wi
   std::vector<uint8_t> img;
   for (int i=0; i< image.size(); i++){
     if (i%2 == 0){
-      img.push_back(image[i]);
+      if (kind == Kind::LZ77){
+        img.push_back(image[i]);
+        img.push_back(image[i]);
+        img.push_back(image[i]);
+      } else {
+        img.push_back(image[i]);
+      }
     } else {
-      mask.push_back(image[i] ? 0 : 1);
+      if (kind == Kind::LZ77){
+        mask.push_back(image[i] ? 0 : 1);
+        mask.push_back(image[i] ? 0 : 1);
+        mask.push_back(image[i] ? 0 : 1);
+      } else {
+        mask.push_back(image[i] ? 0 : 1);
+      }
     }
   }
-  auto img_t = to_tensor(img, height, width, 0, "subtitle_img", kind, imgVals);
-  imgBytes = img_t.second;
-  auto mask_t = to_tensor(mask, height, width, 0, "mask_img", kind, maskVals);
-  imgBytes = img_t.second;
+  if(kind == Kind::LZ77){
+    auto img_t = to_tensor_rgb(img, height, width, 0, "subtitle_img", kind, imgVals);
+    imgBytes = img_t.second;
+    auto mask_t = to_tensor_rgb(mask, height, width, 0, "mask_img", kind, maskVals);
+    imgBytes = img_t.second;
 
-  return {img_t.first, mask_t.first};
+    return {img_t.first, mask_t.first};
+  } else {
+    auto img_t = to_tensor(img, height, width, 0, "subtitle_img", kind, imgVals);
+    imgBytes = img_t.second;
+    auto mask_t = to_tensor(mask, height, width, 0, "mask_img", kind, maskVals);
+    imgBytes = img_t.second;
+
+    return {img_t.first, mask_t.first};
+  }
 }
 
 uint32_t saveTensor(std::vector<unsigned char> valsVec, std::string path, int width, int height){

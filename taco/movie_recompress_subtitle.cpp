@@ -312,5 +312,6 @@ void movie_compress_bench_subtitle(){
           benchmark::DoNotOptimize(crd);
       }, "Compute", repetitions, outputFile);
     }
+    outputFile << std::endl;
   }
 }
