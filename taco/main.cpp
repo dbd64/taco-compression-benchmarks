@@ -44,7 +44,7 @@ int main(){
     } else if (bench == "lz77_rle_brighten"){
         movie_rle_lz77_bench_brighten();
     } else if (bench == "lz77_rle_subtitle"){
-        movie_rle_lz77_bench_brighten();
+        movie_rle_lz77_bench_subtitle();
     } 
     return 0;
 }
