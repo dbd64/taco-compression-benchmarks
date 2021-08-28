@@ -191,7 +191,7 @@ void bench_spmv(){
     } else if (bench_kind == "SPARSE"){
         kind = Kind::SPARSE;
         f = Format{Dense,Sparse};
-        func = Mul_intersect;
+        func = Mul_universe;
     } else if (bench_kind == "RLE"){
         kind = Kind::RLE;
         f = Format{Dense,RLE};

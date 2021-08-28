@@ -6,3 +6,4 @@
 *.swp
 data/FROSTT/*
 venv/*
+slurm-*.out
