@@ -16,6 +16,8 @@
 
 using namespace taco;
 
+bool useRLEVector = true;
+
 struct MulOp {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     taco_iassert(v.size() == 2) << "Requires 2 arguments";
@@ -63,6 +65,19 @@ Func Mul_intersect("mul_intersect", MulOp(), intersectionAlgebra());
 Func Mul_union("mul_union", MulOp(), unionAlgebra());
 Func Mul_universe("mul_universe", MulOp(), universeAlgebra());
 
+Tensor<int> makeRLEVector(std::string name, std::vector<int> v, int size){
+    Tensor<int> t{name, {size}, {RLE}, 0};
+    int curr = v[0];
+    t(0) = curr;
+    for (int i=0; i<size; i++){
+        if (v[i] != curr){
+            curr = v[i];
+            t(i) = curr;
+        }
+    }
+    t.pack();
+    return t;
+}
 
 std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes){
     std::vector<int> v;
@@ -73,7 +88,7 @@ std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int num
         }
         v.push_back(label);
     }
-    Tensor<int> vec = makeDenseVector("vec_" + name, v.size(), v);
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_" + name, v, v.size()) : makeDenseVector("vec_" + name, v.size(), v);
 
     // Load matrix
     std::vector<int> m;
@@ -100,7 +115,7 @@ std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::stri
         }
         v.push_back(label);
     }
-    Tensor<int> vec = makeDenseVector("vec_" + name, v.size(), v);
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_" + name, v, v.size()) : makeDenseVector("vec_" + name, v.size(), v);
 
     // Load matrix
     std::vector<int> m;
@@ -132,7 +147,7 @@ std::pair<Tensor<int>, Tensor<int>> load_csv(std::string filename, std::string n
         col_upper--;
         v = doc.GetColumn<int>(doc.GetColumnCount()-1);
     }
-    Tensor<int> vec = makeDenseVector("vec_" + name, v.size(), v);
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_" + name, v, v.size()) : makeDenseVector("vec_" + name, v.size(), v);
 
     // Read values for matrix
     int numRows = col_upper - col_lower;
@@ -180,7 +195,7 @@ void bench_spmv(){
     } else if (bench_kind == "RLE"){
         kind = Kind::RLE;
         f = Format{Dense,RLE};
-        func = Mul_universe;
+        func = Mul_union;
     } else if (bench_kind == "LZ77"){
         kind = Kind::LZ77;
         f = Format{LZ77};
@@ -191,27 +206,33 @@ void bench_spmv(){
     Tensor<int> vector, matrix;
     int numVals = 0;
     int numBytes = 0;
+    auto lanka_root = "/data/scratch/danielbd/spmv_data/";
+    auto laptop_root = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/";
     if (data == "covtype"){
-        auto csv = load_csv("/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/covtype.data", "covtype", kind, numVals, numBytes, false);
+        auto csv = load_csv(lanka_root + std::string("covtype.data"), "covtype", kind, numVals, numBytes, false);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "mnist"){
-        auto csv = load_csv("/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/mnist_train.csv", "covtype", kind, numVals, numBytes, true);
+        auto csv = load_csv(lanka_root + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "sketches"){
-        auto csv = load_sketches_grey("/Users/danieldonenfeld/Developer/png_analysis/sketches/nodelta/", 1000, "sketches", kind, numVals, numBytes);
+        auto lanka_folder = "/data/scratch/danielbd/python_png_analysis/sketches/nodelta/";
+        auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/sketches/nodelta/";
+        auto csv = load_sketches_grey(lanka_folder, 1000, "sketches", kind, numVals, numBytes);
         vector = csv.first;
         matrix = csv.second;
         if (kind == Kind::SPARSE) func = Mul_universe;
     } else if (data == "ilsvrc"){
-        auto csv = load_imgnet_grey("/Users/danieldonenfeld/Developer/png_analysis/ILSVRC/Data/DET/cropped_grey/", "ILSVRC", kind, numVals, numBytes);
+        auto lanka_folder = lanka_root + std::string("cropped_grey/");
+        auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/ILSVRC/Data/DET/cropped_grey/";
+        auto csv = load_imgnet_grey(lanka_folder, "ILSVRC", kind, numVals, numBytes);
         vector = csv.first;
         matrix = csv.second;
         if (kind == Kind::SPARSE) func = Mul_universe;
     }
 
-    std::string name = "spmv_" + cache_str + "_" + bench_kind + "_" + data + ".csv";
+    std::string name = std::string(useRLEVector ? "RLE_" : "DENSE_") + "spmv_" + cache_str + "_" + bench_kind + "_" + data + ".csv";
     name = getOutputPath() + name;
     std::ofstream outputFile(name);
     std::cout << "Starting " << name << std::endl;
