@@ -14,6 +14,7 @@ void movie_compress_bench_subtitle();
 void movie_lz77_rle();
 void movie_rle_lz77_bench_brighten();
 void movie_rle_lz77_bench_subtitle();
+void movie_mask_mul_bench();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -45,6 +46,8 @@ int main(){
         movie_rle_lz77_bench_brighten();
     } else if (bench == "lz77_rle_subtitle"){
         movie_rle_lz77_bench_subtitle();
-    } 
+    } else if (bench == "maskmul"){
+        movie_mask_mul_bench();
+    }
     return 0;
 }

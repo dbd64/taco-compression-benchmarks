@@ -51,6 +51,60 @@ std::vector<uint8_t> raw_image_grey(std::string filename, int& w, int& h){
    return std::move(image);
 }
 
+std::pair<Tensor<uint8_t>, size_t> to_vector_rgb(const std::vector<uint8_t> image, int h, int w,
+                                            int index, std::string prefix, Kind kind, int& numVals){
+ if (kind == Kind::DENSE){
+   auto t = makeDenseVector(prefix+"dense_" + std::to_string(index), {h*w*3}, image);
+   numVals = h*w*3;
+   return {t, h*w*3};
+ } else if (kind == Kind::LZ77){
+   auto packedr = encode_lz77(image);
+   auto packed = packedr.first;
+   numVals = packedr.second;
+   auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
+                         {h*w*3},
+                         {0, (int)packed.size()}, packed);
+   return {t, packed.size()};
+ } else if (kind == Kind::SPARSE){
+   Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h*w*3}, {Sparse}, 0};
+    for (int row=0; row<h; row++){
+        for (int col=0; col<w; col++){
+            for (int color=0; color<3; color++){
+              if (image[row*w*3 + col*3 + color] != 0){
+                t(row*w*3 + col*3 + color) = image[row*w*3 + col*3 + color];
+              }
+            }
+        }
+    }
+    t.pack();
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*5};
+ }
+//  } else if (kind == Kind::RLE){
+//    Tensor<uint8_t> t{prefix+"rle_" + std::to_string(index), {h,w,3}, {Dense,RLE_size(3),Dense}, 0};
+//     uint8_t curr[3] = {image[0], image[1], image[2]};
+//     t(0,0,0) = curr[0];
+//     t(0,0,1) = curr[1];
+//     t(0,0,2) = curr[2];
+//     for (int row=0; row<h; row++){
+//     for (int col=0; col<w; col++){
+//         if (image[row*w*3 + col*3 + 0] != curr[0] ||
+//             image[row*w*3 + col*3 + 1] != curr[1] ||
+//             image[row*w*3 + col*3 + 2] != curr[2]){
+//         curr[0] = image[row*w*3 + col*3 + 0];
+//         curr[1] = image[row*w*3 + col*3 + 1];
+//         curr[2] = image[row*w*3 + col*3 + 2];
+//         for (int color=0; color<3; color++){
+//             t(row,col,color) = image[row*w*3 + col*3 + color];
+//         }
+//         }
+//     }
+//     }
+//     t.pack();
+//     numVals = t.getStorage().getValues().getSize();
+//     return {t, t.getStorage().getValues().getSize()*5};
+//  }
+}
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
                                             int index, std::string prefix, Kind kind, int& numVals){

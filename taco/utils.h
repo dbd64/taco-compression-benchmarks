@@ -80,6 +80,9 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
 std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h, int w, 
                                              int index, std::string prefix, Kind kind, int& numVals, int sparseVal = 0);
 
+std::pair<Tensor<uint8_t>, size_t> to_vector_rgb(const std::vector<uint8_t> image, int h, int w,
+                                            int index, std::string prefix, Kind kind, int& numVals);
+
 std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std::string prefix, int index, Kind kind, int& w, int& h, int& numVals);
 std::pair<Tensor<uint8_t>, Tensor<uint8_t>> read_subtitle_mask(Kind kind, int width, int height, int& maskBytes, int& maskVals, int& imgBytes, int& imgVals);
 
