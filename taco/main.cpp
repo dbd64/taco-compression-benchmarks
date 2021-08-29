@@ -15,6 +15,7 @@ void movie_lz77_rle();
 void movie_rle_lz77_bench_brighten();
 void movie_rle_lz77_bench_subtitle();
 void movie_mask_mul_bench();
+void bench_spmv_rand();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -48,6 +49,8 @@ int main(){
         movie_rle_lz77_bench_subtitle();
     } else if (bench == "maskmul"){
         movie_mask_mul_bench();
+    } else if (bench == "spmv_rand"){
+        bench_spmv_rand();
     }
     return 0;
 }

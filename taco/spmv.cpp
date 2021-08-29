@@ -14,6 +14,8 @@
 #include "codegen/codegen.h"
 #include "png_reader.h"
 
+#include <random>
+
 using namespace taco;
 
 bool useRLEVector = true;
@@ -77,6 +79,45 @@ Tensor<int> makeRLEVector(std::string name, std::vector<int> v, int size){
     }
     t.pack();
     return t;
+}
+
+std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, int run_upper, Kind kind, int& numVals, int& numBytes){
+    std::default_random_engine gen(index);
+    std::uniform_int_distribution<int> unif_vals(0, 255);
+    std::uniform_int_distribution<int> unif_runs(1, run_upper);
+
+    std::vector<int> v;
+    int label = unif_vals(gen);
+    int run_len = unif_runs(gen);
+    int numValsVec = 1;
+    for (int i=0; i<width; i++){
+        if (run_len == 0 ){
+            label = unif_vals(gen);
+            run_len = unif_runs(gen);
+            numValsVec++;
+        }
+        v.push_back(label);
+        run_len--;
+    }
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
+
+    // Load matrix
+    std::vector<int> m;
+    label = unif_vals(gen);
+    run_len = unif_runs(gen);
+    for (int i=0; i<width*height; i++){
+        if (run_len == 0 ){
+            label = unif_vals(gen);
+            run_len = unif_runs(gen);
+        }
+        m.push_back(label);
+        run_len--;
+    }
+
+    auto mat = to_tensor_int(m, height, width, 0, "mtx_rand", kind, numVals, 0);
+    numBytes = mat.second;
+    numVals += numValsVec;
+    return {vec, mat.first};
 }
 
 std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes){
@@ -269,5 +310,114 @@ void bench_spmv(){
     outputFile << "," << count.first << "," << count.second << std::endl;
 
     out.printComputeIR(std::cout);
+
+}
+
+void writeHeaderSpmvRand(std::ostream& os, int repetitions){
+  os << "index,kind,width,height,run_upper,total_vals,total_bytes,mean,stddev,median,";
+  for (int i=0; i<repetitions-1; i++){
+    os << i << ","; 
+  }
+  os << repetitions-1 << ",";
+  os << "out_bytes,out_vals";
+  os << std::endl;
+}
+
+void bench_spmv_rand(){
+    bool time = true;
+    auto copy = getCopyFunc();
+    taco::util::TimeResults timevalue{};
+    const IndexVar i("i"), j("j"), c("c");
+
+    int repetitions = 100;
+
+    auto cache_str = getEnvVar("CACHE");
+    bool cold_cache = true;
+    if (cache_str == "WARM"){
+        cold_cache = false;
+    } else {
+        cache_str = "COLD";
+    }
+
+    Func func = Mul_intersect;
+
+    auto bench_kind = getEnvVar("BENCH_KIND");
+    Kind kind;
+    Format f;
+    if (bench_kind == "DENSE") {
+        kind = Kind::DENSE;
+        f = Format{Dense,Dense};
+        func = Mul_universe;
+    } else if (bench_kind == "SPARSE"){
+        kind = Kind::SPARSE;
+        f = Format{Dense,Sparse};
+        func = Mul_universe;
+    } else if (bench_kind == "RLE"){
+        kind = Kind::RLE;
+        f = Format{Dense,RLE};
+        func = Mul_union;
+    } else if (bench_kind == "LZ77"){
+        kind = Kind::LZ77;
+        f = Format{LZ77};
+        func = Mul_universe;
+    }
+
+
+    int width = 1000;
+    int height = 10000;
+    auto run_upper_str = getEnvVar("RUN_UPPER");
+    int run_upper = std::stoi(run_upper_str);
+
+    auto index_str = getEnvVar("INDEX");
+    int index = std::stoi(index_str);
+
+
+    std::string name = std::string(useRLEVector ? "RLE_" : "DENSE_") + "spmv_" + cache_str + "_" + bench_kind + "_" + index_str + "_" + run_upper_str + "_RAND.csv";
+    name = getOutputPath() + name;
+    std::ofstream outputFile(name);
+    std::cout << "Starting " << name << std::endl;
+
+    writeHeaderSpmvRand(outputFile, repetitions);
+
+
+    // for (int index=start; index<=end; index++)
+    {
+        int numVals = 0;
+        int numBytes = 0;
+        auto ins = gen_rand(index, width, height, run_upper, kind, numVals, numBytes);
+        Tensor<int> vector = ins.first;
+        Tensor<int> matrix = ins.second;
+
+        std::cout << vector.getDimensions() << std::endl;
+        std::cout << matrix.getDimensions() << std::endl;
+
+        Tensor<uint8_t> out("out", {matrix.getStorage().getDimensions()[0]}, {Dense});
+        IndexStmt stmt = (out(i) = func(matrix(i,j), vector(j)));
+
+        out.setAssembleWhileCompute(true);
+        out.compile();
+        Kernel k = getKernel(stmt, out);
+
+        taco_tensor_t* a0 = out.getStorage();
+        taco_tensor_t* a1 = matrix.getStorage();
+        taco_tensor_t* a2 = vector.getStorage();
+
+        outputFile << index << "," << bench_kind << "," << width << "," << height << "," << run_upper << "," << numVals << "," << numBytes  << ",";
+        if (cold_cache){
+            TOOL_BENCHMARK_REPEAT({
+                k.compute(a0,a1,a2);
+            }, "Compute", repetitions, outputFile);
+        } else {
+            TOOL_BENCHMARK_REPEAT_WARM({
+                k.compute(a0,a1,a2);
+            }, "Compute", repetitions, outputFile);
+        }
+
+        out.compute();
+        auto count = count_bytes_vals(out, kind);
+        outputFile << "," << count.first << "," << count.second << std::endl;
+
+        out.printComputeIR(std::cout);
+    }
 
 }
