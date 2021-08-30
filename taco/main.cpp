@@ -15,7 +15,12 @@ void movie_lz77_rle();
 void movie_rle_lz77_bench_brighten();
 void movie_rle_lz77_bench_subtitle();
 void movie_mask_mul_bench();
+
+// MICROBENCH
 void bench_spmv_rand();
+void bench_constmul_rand();
+void bench_elementwisemul_rand();
+
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -51,6 +56,10 @@ int main(){
         movie_mask_mul_bench();
     } else if (bench == "spmv_rand"){
         bench_spmv_rand();
+    } else if (bench == "micro_constmul"){
+       bench_constmul_rand();
+    } else if (bench == "micro_elemwise"){
+        bench_elementwisemul_rand();
     }
     return 0;
 }

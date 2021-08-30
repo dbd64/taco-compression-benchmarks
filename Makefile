@@ -18,13 +18,24 @@ endif
 # Set LANKA=ON if compiling on the MIT Lanka cluster.
 ifeq ($(LANKA),)
 LANKA := "OFF"
+else
+TACO_SRC_DIR := "/data/scratch/danielbd/taco-compression-benchmarks/taco/"
 endif
 
+ifeq ($(BUILD_DIR),)
+BUILD_DIR := "taco/build"
+endif
+
+ifeq ($(TACO_SRC_DIR),)
+TACO_SRC_DIR := "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/taco/"
+endif
+
+
 ifeq ("$(LANKA)","ON")
-CMD := LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) numactl -C 0 -m 0 taco/build/taco-bench $(BENCHFLAGS)
+CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) numactl -C 0 -m 0 $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
 MAKE_CMD := $(MAKE) taco-bench -j48
 else
-CMD := LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS)
+CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
 MAKE_CMD := $(MAKE) taco-bench -j16
 endif
 
@@ -52,7 +63,7 @@ ifeq ($(VALIDATION_OUTPUT_PATH),)
 endif
 
 taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/googletest
-	mkdir -p taco/build/ && cd taco/build/ && cmake -DLANKA=$(LANKA) ../ && $(MAKE_CMD)
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DLANKA=$(LANKA) $(TACO_SRC_DIR) && $(MAKE_CMD)
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
