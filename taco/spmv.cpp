@@ -86,6 +86,7 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
     std::uniform_int_distribution<int> unif_vals(0, 255);
     std::uniform_int_distribution<int> unif_runs(1, run_upper);
 
+{
     std::vector<int> v;
     int label = unif_vals(gen);
     int run_len = unif_runs(gen);
@@ -100,11 +101,12 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
         run_len--;
     }
     Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
+}
 
     // Load matrix
     std::vector<int> m;
-    label = unif_vals(gen);
-    run_len = unif_runs(gen);
+    int label = unif_vals(gen);
+    int run_len = unif_runs(gen);
     for (int i=0; i<width*height; i++){
         if (run_len == 0 ){
             label = unif_vals(gen);
@@ -116,6 +118,24 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
 
     auto mat = to_tensor_int(m, height, width, 0, "mtx_rand", kind, numVals, 0);
     numBytes = mat.second;
+
+
+    std::uniform_int_distribution<int> unif_vals_vec(1, 255);
+    std::vector<int> v;
+    label = unif_vals_vec(gen);
+    run_len = unif_runs(gen);
+    int numValsVec = 1;
+    for (int i=0; i<width; i++){
+        if (run_len == 0 ){
+            label = unif_vals_vec(gen);
+            run_len = unif_runs(gen);
+            numValsVec++;
+        }
+        v.push_back(label);
+        run_len--;
+    }
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
+
     numVals += numValsVec;
     return {vec, mat.first};
 }
@@ -247,27 +267,28 @@ void bench_spmv(){
     Tensor<int> vector, matrix;
     int numVals = 0;
     int numBytes = 0;
+    bool useLanka = false;
     auto lanka_root = "/data/scratch/danielbd/spmv_data/";
     auto laptop_root = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/";
     if (data == "covtype"){
-        auto csv = load_csv(lanka_root + std::string("covtype.data"), "covtype", kind, numVals, numBytes, false);
+        auto csv = load_csv((useLanka ? lanka_root : laptop_root) + std::string("covtype.data"), "covtype", kind, numVals, numBytes, false);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "mnist"){
-        auto csv = load_csv(lanka_root + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true);
+        auto csv = load_csv((useLanka ? lanka_root : laptop_root) + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "sketches"){
         auto lanka_folder = "/data/scratch/danielbd/python_png_analysis/sketches/nodelta/";
         auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/sketches/nodelta/";
-        auto csv = load_sketches_grey(lanka_folder, 1000, "sketches", kind, numVals, numBytes);
+        auto csv = load_sketches_grey((useLanka ? lanka_folder : laptop_folder), 1000, "sketches", kind, numVals, numBytes);
         vector = csv.first;
         matrix = csv.second;
         if (kind == Kind::SPARSE) func = Mul_universe;
     } else if (data == "ilsvrc"){
         auto lanka_folder = lanka_root + std::string("cropped_grey/");
         auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/ILSVRC/Data/DET/cropped_grey/";
-        auto csv = load_imgnet_grey(lanka_folder, "ILSVRC", kind, numVals, numBytes);
+        auto csv = load_imgnet_grey((useLanka ? lanka_folder : laptop_folder), "ILSVRC", kind, numVals, numBytes);
         vector = csv.first;
         matrix = csv.second;
         if (kind == Kind::SPARSE) func = Mul_universe;
