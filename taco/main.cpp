@@ -20,7 +20,7 @@ void movie_mask_mul_bench();
 void bench_spmv_rand();
 void bench_constmul_rand();
 void bench_elementwisemul_rand();
-
+void bench_maskmul_rand();
 
 int main(){
     auto bench = getEnvVar("BENCH");
@@ -60,6 +60,8 @@ int main(){
        bench_constmul_rand();
     } else if (bench == "micro_elemwise"){
         bench_elementwisemul_rand();
+    } else if (bench == "micro_maskmul"){
+        bench_maskmul_rand();
     }
     return 0;
 }

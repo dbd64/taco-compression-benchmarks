@@ -37,6 +37,13 @@ struct MulOp {
   }
 };
 
+struct MaskMulOp {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    taco_iassert(v.size() == 2) << "Requires 2 arguments";
+    return ir::Div::make(ir::Mul::make(v[0], v[1]), 255);
+  }
+};
+
 struct unionAlgebra {
  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
     if (regions.size() == 1){
@@ -82,6 +89,39 @@ Func ConstMul_universe("mul_universe", ConstMulOp(), universeAlgebra());
 Func Mul_intersect("mul_intersect", MulOp(), intersectionAlgebra());
 Func Mul_union("mul_union", MulOp(), unionAlgebra());
 Func Mul_universe("mul_universe", MulOp(), universeAlgebra());
+
+Func MaskMul_intersect("mul_intersect", MaskMulOp(), intersectionAlgebra());
+Func MaskMul_union("mul_union", MaskMulOp(), unionAlgebra());
+Func MaskMul_universe("mul_universe", MaskMulOp(), universeAlgebra());
+
+
+Tensor<int> gen_mask(Kind kind, int w, int h, int& maskBytes, int& maskVals, bool linearize){
+  std::pair<Tensor<int>, int> p;
+  double halfWidth = ((double)w)/2;
+//   if (linearize){
+//     vector<int> vals(w*h*3, 0);
+//     for (int r=0; r<h; r++){
+//       for (int c=w/2; c<w; c++){
+//         for (int color=0; color<3; color++){
+//           vals[r*w*3 + c*3 + color] = (255 * (c/halfWidth - 1));
+//         }
+//       }
+//     }
+//     p = to_vector_int(vals, h, w, 0, "mask_", kind, maskVals);
+//   } else 
+  {
+    vector<int> vals(w*h, 0);
+    for (int r=0; r<h; r++){
+      for (int c=w/2; c<w; c++){
+        vals[r*w + c] = (255 * (c/halfWidth - 1));
+      }
+    }
+    p = to_tensor_int(vals, h, w, 0,"mask_", kind, maskVals);
+  }
+  maskBytes = p.second;
+  return p.first;
+}
+
 
 Tensor<int> makeRLEVector(std::string name, std::vector<int> v, int size){
     Tensor<int> t{name, {size}, {RLE}, 0};
@@ -324,6 +364,106 @@ void bench_elementwisemul_rand(){
         taco_tensor_t* a2 = matrix1.getStorage();
 
         outputFile << index << "," << bench_kind << "," << width << "," << height << "," << run_upper << "," << numVals << "," << numBytes  << ",";
+        if (cold_cache){
+            TOOL_BENCHMARK_REPEAT({
+                k.compute(a0,a1,a2);
+            }, "Compute", repetitions, outputFile);
+        } else {
+            TOOL_BENCHMARK_REPEAT_WARM({
+                k.compute(a0,a1,a2);
+            }, "Compute", repetitions, outputFile);
+        }
+
+        out.compute();
+        auto count = count_bytes_vals(out, kind);
+        outputFile << "," << count.first << "," << count.second << std::endl;
+
+        out.printComputeIR(std::cout);
+    }
+
+}
+
+void bench_maskmul_rand(){
+    bool time = true;
+    auto copy = getCopyFunc();
+    taco::util::TimeResults timevalue{};
+    const IndexVar i("i"), j("j"), c("c");
+
+    int repetitions = 100;
+
+    auto cache_str = getEnvVar("CACHE");
+    bool cold_cache = true;
+    if (cache_str == "WARM"){
+        cold_cache = false;
+    } else {
+        cache_str = "COLD";
+    }
+
+    Func func = MaskMul_intersect;
+
+    auto bench_kind = getEnvVar("BENCH_KIND");
+    Kind kind;
+    Format f;
+    if (bench_kind == "DENSE") {
+        kind = Kind::DENSE;
+        f = Format{Dense,Dense};
+        func = MaskMul_universe;
+    } else if (bench_kind == "SPARSE"){
+        kind = Kind::SPARSE;
+        f = Format{Dense,Sparse};
+        func = MaskMul_intersect;
+    } else if (bench_kind == "RLE"){
+        kind = Kind::RLE;
+        f = Format{Dense,RLE};
+        func = MaskMul_universe;
+    } else if (bench_kind == "LZ77"){
+        kind = Kind::LZ77;
+        f = Format{LZ77};
+        func = MaskMul_universe;
+    }
+
+
+    int width = 1000;
+    int height = 10000;
+    auto run_upper_str = getEnvVar("RUN_UPPER");
+    int run_upper = std::stoi(run_upper_str);
+
+    auto index_str = getEnvVar("INDEX");
+    int index = std::stoi(index_str);
+
+
+    std::string name = std::string(useRLEVector ? "RLE_" : "DENSE_") + "maskmul_" + cache_str + "_" + bench_kind + "_" + index_str + "_" + run_upper_str + "_RAND.csv";
+    name = getOutputPath() + name;
+    std::ofstream outputFile(name);
+    std::cout << "Starting " << name << std::endl;
+
+    writeHeaderSpmvRand(outputFile, repetitions);
+
+    // for (int index=start; index<=end; index++)
+    {
+        int numVals = 0;
+        int numBytes = 0;
+        auto ins = gen_rand(index, width, height, run_upper, kind, numVals, numBytes);
+        Tensor<int> matrix = ins.second;
+
+        int maskVals = 0;
+        int maskBytes = 0;
+        auto matrix1 = gen_mask(Kind::SPARSE, width, height, maskBytes, maskVals, false); //gen_rand(index+10, width, height, run_upper, kind, numVals, numBytes);
+
+        std::cout << matrix.getDimensions() << std::endl;
+
+        Tensor<uint8_t> out("out", matrix.getDimensions(), {Dense});
+        IndexStmt stmt = (out(i,j) = func(matrix(i,j), matrix1(i,j)));
+
+        out.setAssembleWhileCompute(true);
+        out.compile();
+        Kernel k = getKernel(stmt, out);
+
+        taco_tensor_t* a0 = out.getStorage();
+        taco_tensor_t* a1 = matrix.getStorage();
+        taco_tensor_t* a2 = matrix1.getStorage();
+
+        outputFile << index << "," << bench_kind << "," << width << "," << height << "," << run_upper << "," << numVals + maskVals << "," << numBytes + maskBytes  << ",";
         if (cold_cache){
             TOOL_BENCHMARK_REPEAT({
                 k.compute(a0,a1,a2);
