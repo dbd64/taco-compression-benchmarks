@@ -158,22 +158,45 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
     Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
 
     // Load matrix
-    std::vector<int> m;
-    label = unif_vals(gen);
-    run_len = unif_runs(gen);
-    for (int i=0; i<width*height; i++){
-        if (run_len == 0 ){
-            label = unif_vals(gen);
-            run_len = unif_runs(gen);
+    if (kind == Kind::LZ77){
+        std::vector<TempValue<int>> m;
+        label = unif_vals(gen);
+        run_len = unif_runs(gen);
+        int remaining = width*height;
+        while (remaining > 0){
+            m.push_back(label);
+            run_len-=1; remaining -= 1; numVals++;
+            int count = std::min({run_len, 32767, remaining});
+            if (count) m.push_back(Repeat{1,count});
+            run_len -= count;
+            remaining -= count;
+            if (run_len == 0){
+                label = unif_vals(gen);
+                run_len = unif_runs(gen);
+            }
         }
-        m.push_back(label);
-        run_len--;
-    }
+        auto packed = packLZ77_bytes(m);
+        numBytes = packed.size();
+        numVals += numValsVec;
+        return {vec, makeLZ77<int>("mtx_rand_" + std::to_string(index), {width*height}, {0, (int) packed.size()}, packed)};
+    } else {
+        std::vector<int> m;
+        label = unif_vals(gen);
+        run_len = unif_runs(gen);
+        for (int i=0; i<width*height; i++){
+            if (run_len == 0 ){
+                label = unif_vals(gen);
+                run_len = unif_runs(gen);
+            }
+            m.push_back(label);
+            run_len--;
+        }
 
-    auto mat = to_tensor_int(m, height, width, 0, "mtx_rand_" + std::to_string(index), kind, numVals, 0);
-    numBytes = mat.second;
-    numVals += numValsVec;
-    return {vec, mat.first};
+        auto mat = to_tensor_int(m, height, width, 0, "mtx_rand_" + std::to_string(index), kind, numVals, 0);
+        numBytes = mat.second;
+        numVals += numValsVec;
+        return {vec, mat.first};
+    }
 }
 
 void writeHeaderSpmvRand(std::ostream& os, int repetitions){
