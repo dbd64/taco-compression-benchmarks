@@ -1,0 +1,1 @@
+set (OpenCV_DIR ../opencv/install/)
