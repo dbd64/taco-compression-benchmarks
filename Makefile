@@ -42,9 +42,9 @@ endif
 export TACO_TENSOR_PATH = data/
 
 ifeq ("$(shell nproc)","")
-NPROC_VAL := $(shell nproc)
-else
 NPROC_VAL := $(shell sysctl -n hw.logicalcpu)
+else
+NPROC_VAL := $(shell nproc)
 endif
 
 taco-bench: taco/build/taco-bench
