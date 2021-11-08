@@ -74,8 +74,7 @@ taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/google
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
 
-.PHONY: opencv
-opencv: 
+opencv: check-and-reinit-submodules
 	mkdir -p opencv/build && \
 	mkdir -p opencv/install && \
 	cd opencv/build && \
