@@ -41,6 +41,12 @@ endif
 
 export TACO_TENSOR_PATH = data/
 
+ifeq ("$(shell nproc)","")
+NPROC_VAL := $(shell sysctl -n hw.logicalcpu)
+else
+NPROC_VAL := $(shell nproc)
+endif
+
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
 	$(CMD) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
@@ -67,6 +73,20 @@ taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/google
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
+
+opencv: check-and-reinit-submodules
+	mkdir -p opencv/build && \
+	mkdir -p opencv/install && \
+	cd opencv/build && \
+	cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=../install .. && \
+	make -j$(NPROC_VAL) && \
+	make install
+
+opencv_bench: opencv
+	mkdir -p opencv_bench/build && \
+	cd opencv_bench/build && \
+	CMAKE_PREFIX_PATH=../../opencv/install/ cmake .. && \
+	make -j$(NPROC_VAL)
 
 .PHONY: results
 results:
