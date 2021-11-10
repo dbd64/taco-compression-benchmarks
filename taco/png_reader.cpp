@@ -17,6 +17,7 @@
 #include <variant>
 #include <climits>
 #include <limits>
+#include <fstream>
 
 extern "C" {
 #include "lz_sum_kernel.h"
@@ -815,9 +816,14 @@ void sketch_alpha_blending(){
 
   int repetitions = getValidationOutputPath() == "" ? 1000 : 1; 
 
-  std::cout << "index,isDense,total_bytes,mean,stddev,median" << std::endl;
+  auto name = "/data/scratch/danielbd/taco-compression-benchmarks/out/ALPH_BLENDING_SKETCH.csv";
+  std::ofstream outputFile(name);
 
-  for (int index=968; index<=1000; index++){
+
+  outputFile << "index,isDense,total_bytes,mean,stddev,median" << std::endl;
+
+  for (int index=1; index<=1000; index++){
+    std::cout << "INDEX: " << index << std::endl;
     Tensor<uint8_t> denseResult("denseResult", {1111*1111}, Format{Dense});
     {
       Kind kind = Kind::DENSE;
@@ -838,18 +844,19 @@ void sketch_alpha_blending(){
       taco_tensor_t* a0 = denseResult.getStorage();
       taco_tensor_t* a1 = d0.getStorage();
       taco_tensor_t* a2 = d1.getStorage();
-      std::cout << index << "," << "DENSE" << "," << res0.second + res1.second  << ",";
+      outputFile << index << "," << "DENSE" << "," << res0.second + res1.second  << ",";
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions, std::cout);
+              repetitions, outputFile);
+      outputFile << std::endl;
 
-      if (auto valPath = getValidationOutputPath(); valPath != ""){
-        k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
-        auto vals = outStorage.getValues();
-        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-        saveTensor(valsVec, valPath + "dense_" + std::to_string(index) + ".png");
-      }
+      // if (auto valPath = getValidationOutputPath(); valPath != ""){
+      //   k.unpack(3, {a0,a1,a2}, {outStorage, d0Storage, d1Storage});
+      //   auto vals = outStorage.getValues();
+      //   std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+      //   saveTensor(valsVec, valPath + "dense_" + std::to_string(index) + ".png");
+      // }
     }
     {
       Kind kind = Kind::LZ77;
@@ -873,18 +880,19 @@ void sketch_alpha_blending(){
       taco_tensor_t* a1 = d0.getStorage();
       taco_tensor_t* a2 = d1.getStorage();
 
-      std::cout << index << "," << "LZ77" << "," << res0.second + res1.second << ",";
+      outputFile << index << "," << "LZ77" << "," << res0.second + res1.second << ",";
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions, std::cout);
+              repetitions, outputFile);
+      outputFile << std::endl;
 
-      if (auto valPath = getValidationOutputPath(); valPath != ""){
-        int* pos = (int*)(a0->indices[0][0]);
-        std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
-        int numVals = 0;
-        saveTensor(unpackLZ77_bytes(valsVec, numVals), valPath + "lz77_" + std::to_string(index) + ".png");
-      }
+      // if (auto valPath = getValidationOutputPath(); valPath != ""){
+      //   int* pos = (int*)(a0->indices[0][0]);
+      //   std::vector<uint8_t> valsVec(a0->vals,a0->vals+pos[1]);
+      //   int numVals = 0;
+      //   saveTensor(unpackLZ77_bytes(valsVec, numVals), valPath + "lz77_" + std::to_string(index) + ".png");
+      // }
     }
     {
       Kind kind = Kind::SPARSE;
@@ -903,29 +911,30 @@ void sketch_alpha_blending(){
       taco_tensor_t* a0 = es;
       taco_tensor_t* a1 = d0.getStorage();
       taco_tensor_t* a2 = d1.getStorage();
-      std::cout << index << "," << "SPARSE" << "," << res0.second + res1.second  << ",";
+      outputFile << index << "," << "SPARSE" << "," << res0.second + res1.second  << ",";
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions, std::cout);
+              repetitions, outputFile);
+      outputFile << std::endl;
 
-      if (auto valPath = getValidationOutputPath(); valPath != ""){
-        k.unpack(1, {a0}, {es});
-        expected.setStorage(es);
-        std::cout << "after unpack \n";
+      // if (auto valPath = getValidationOutputPath(); valPath != ""){
+      //   k.unpack(1, {a0}, {es});
+      //   expected.setStorage(es);
+      //   std::cout << "after unpack \n";
 
-        Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
-        denseOutput(i) = expected(i);
-        denseOutput.setAssembleWhileCompute(true);
-        denseOutput.compile();
-        std::cout << "before compute \n";
-        denseOutput.compute();
-        std::cout << "after compute \n";
+      //   Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
+      //   denseOutput(i) = expected(i);
+      //   denseOutput.setAssembleWhileCompute(true);
+      //   denseOutput.compile();
+      //   std::cout << "before compute \n";
+      //   denseOutput.compute();
+      //   std::cout << "after compute \n";
 
-        auto vals = denseOutput.getStorage().getValues();
-        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-        saveTensor(valsVec, valPath + "sparse_" + std::to_string(index) + ".png");
-      }
+      //   auto vals = denseOutput.getStorage().getValues();
+      //   std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+      //   saveTensor(valsVec, valPath + "sparse_" + std::to_string(index) + ".png");
+      // }
     }
     {
       Kind kind = Kind::RLE;
@@ -949,25 +958,26 @@ void sketch_alpha_blending(){
       taco_tensor_t* a1 = d0.getStorage();
       taco_tensor_t* a2 = d1.getStorage();
 
-      std::cout << index << "," << "RLE" << "," << res0.second + res1.second  << ",";
+      outputFile << index << "," << "RLE" << "," << res0.second + res1.second  << ",";
       TOOL_BENCHMARK_REPEAT(
               k.compute(a0,a1,a2),
               "Compute",
-              repetitions, std::cout);
+              repetitions, outputFile);
+      outputFile << std::endl;
 
-      if (auto valPath = getValidationOutputPath(); valPath != ""){
-        k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});
+      // if (auto valPath = getValidationOutputPath(); valPath != ""){
+      //   k.unpack(3, {a0,a1,a2}, {expected.getStorage(), d0.getStorage(), d1.getStorage()});
 
-        Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
-        denseOutput(i) = copy(expected(i));
-        denseOutput.compile();
-        denseOutput.assemble();
-        denseOutput.compute();
+      //   Tensor<uint8_t> denseOutput("dense", {1111*1111}, Format{Dense}, 255);
+      //   denseOutput(i) = copy(expected(i));
+      //   denseOutput.compile();
+      //   denseOutput.assemble();
+      //   denseOutput.compute();
 
-        auto vals = denseOutput.getStorage().getValues();
-        std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
-        saveTensor(valsVec, valPath + "rle_" + std::to_string(index) + ".png");
-      }
+      //   auto vals = denseOutput.getStorage().getValues();
+      //   std::vector<uint8_t> valsVec((uint8_t*)vals.getData(),(uint8_t*)vals.getData()+vals.getSize());
+      //   saveTensor(valsVec, valPath + "rle_" + std::to_string(index) + ".png");
+      // }
     }
 
   }
