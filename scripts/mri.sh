@@ -7,29 +7,23 @@
 
 set -u
 
-out=/data/scratch/danielbd/out_all/
-validation=/data/scratch/danielbd/taco-compression-benchmarks2/out/roi_sparse_change/validation/
-lanka=ON
+SCRIPT_DIR=$(dirname $(readlink -f $0))
+ARTIFACT_DIR=$SCRIPT_DIR/../../
+
+cd $SCRIPT_DIR/..
+
+out=$ARTIFACT_DIR/out/mri/
+lanka=OFF
 mkdir -p "$out"
-mkdir -p "$validation"
 
-imgs="/data/scratch/danielbd/taco-compression-benchmarks2/data/mri/"
+imgs="$ARTIFACT_DIR/taco-compression-benchmarks/data/mri/"
 
-for i in {0..24} 
+for i in {1..253} 
 do
-    START=$(( (i * 10) + 1 ))
-    END=$(( ((i+1) * 10) ))
-
-    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="SPARSE" CACHE_KERNELS=0 make taco-bench
-    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="DENSE" CACHE_KERNELS=0 make taco-bench 
-    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="RLE" CACHE_KERNELS=0 make taco-bench
-    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="LZ77" CACHE_KERNELS=0 make taco-bench
+    START=$(( i ))
+    END=$(( i ))
+    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="SPARSE" CACHE_KERNELS=0 make taco-bench
+    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="DENSE" CACHE_KERNELS=0 make taco-bench 
+    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="RLE" CACHE_KERNELS=0 make taco-bench
+    LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="LZ77" CACHE_KERNELS=0 make taco-bench
 done
-
-START=251
-END=253
-
-LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="SPARSE" CACHE_KERNELS=0 make taco-bench
-LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="DENSE" CACHE_KERNELS=0 make taco-bench 
-LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="RLE" CACHE_KERNELS=0 make taco-bench
-LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" VALIDATION_OUTPUT_PATH="$validation" BENCH_KIND="LZ77" CACHE_KERNELS=0 make taco-bench

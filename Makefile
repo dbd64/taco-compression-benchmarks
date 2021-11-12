@@ -18,16 +18,14 @@ endif
 # Set LANKA=ON if compiling on the MIT Lanka cluster.
 ifeq ($(LANKA),)
 LANKA := "OFF"
-else
-TACO_SRC_DIR := "/data/scratch/danielbd/taco-compression-benchmarks/taco/"
 endif
 
 ifeq ($(BUILD_DIR),)
-BUILD_DIR := "taco/build"
+BUILD_DIR := "/home/artifact/artifact/taco-compression-benchmarks/taco/build"
 endif
 
 ifeq ($(TACO_SRC_DIR),)
-TACO_SRC_DIR := "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/taco/"
+TACO_SRC_DIR := "/home/artifact/artifact/taco-compression-benchmarks/taco/"
 endif
 
 
@@ -48,11 +46,7 @@ NPROC_VAL := $(shell nproc)
 endif
 
 taco-bench: taco/build/taco-bench
-ifeq ($(BENCHES),"")
-	$(CMD) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
-else
-	$(CMD) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
-endif
+	$(CMD)
 
 # Separate target to run the TACO benchmarks with numpy-taco cross validation logic.
 validate-taco-bench: taco/build/taco-bench validation-path

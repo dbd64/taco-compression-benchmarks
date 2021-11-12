@@ -155,6 +155,6 @@ void movie_subtitle_bench(){
 
     //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
     //  saveValidation(f2t, kind, w, h, false,  bench_kind, index, "f2");
-    saveValidation(out, kind, w, h, false, bench_kind, index, "out");
+    // saveValidation(out, kind, w, h, false, bench_kind, index, "out");
   }
 }

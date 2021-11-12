@@ -144,7 +144,7 @@ void movie_mask_mul_bench(){
   int maskBytes = 0;
   int maskVals = 0;
   auto mask = gen_mask(Kind::SPARSE, w, h, maskBytes, maskVals, kind == Kind::LZ77);
-  saveValidation(mask, kind, w, h,  bench_kind, 0, "mask", false);
+  // saveValidation(mask, kind, w, h,  bench_kind, 0, "mask", false);
 
   for (int index=start; index<=end; index++){
     std::cout << "movie_maskmul: " << index <<  std::endl; 
@@ -177,6 +177,6 @@ void movie_mask_mul_bench(){
     outputFile << "," << count.first << "," << count.second << std::endl;
 
     //  saveValidation(f1t, kind, w, h, false, bench_kind, index, "f1");
-    saveValidation(out, kind, w, h, false, bench_kind, index, "out");
+    // saveValidation(out, kind, w, h, false, bench_kind, index, "out");
   }
 }

@@ -134,6 +134,6 @@ void movie_brighten_bench(){
     // } else {
     //   saveValidation(mt,  kind, w, h, bench_kind, index, "mask", true);
     // }
-    saveValidation(out, kind, w, h, false, bench_kind, index, "out");
+    // saveValidation(out, kind, w, h, false, bench_kind, index, "out");
   }
 }

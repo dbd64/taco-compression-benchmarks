@@ -24,6 +24,7 @@ void bench_maskmul_rand();
 
 int main(){
     auto bench = getEnvVar("BENCH");
+    std::cout << "Starting benchmark: " << bench << std::endl;
     if (bench == "sketch"){
         sketch_alpha_blending();
     } else if (bench == "brighten"){

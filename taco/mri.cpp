@@ -26,7 +26,7 @@ std::vector<uint8_t> raw_image_(std::string filename, int& w, int& h){
     unsigned error = lodepng::load_file(png, filename);
     if(!error) error = decode(image, compressed, pos, width, height, png, LCT_GREY);
 
-    if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+    if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << " (" << filename << ")" << std::endl;
     
     w = (int)width;
     h = (int)height;

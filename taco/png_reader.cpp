@@ -816,13 +816,29 @@ void sketch_alpha_blending(){
 
   int repetitions = getValidationOutputPath() == "" ? 1000 : 1; 
 
-  auto name = "/data/scratch/danielbd/taco-compression-benchmarks/out/ALPH_BLENDING_SKETCH.csv";
+  auto start_str = getEnvVar("IMAGE_START");
+  if (start_str == "") {
+    std::cout << "No start" << std::endl;
+    return;
+  }
+  auto end_str = getEnvVar("IMAGE_END");
+  if (end_str == "") {
+    std::cout << "No end" << std::endl;
+    return;
+  }
+
+  int start = std::stoi(start_str);
+  int end = std::stoi(end_str);
+  int numFrames = end - (start-1);
+
+
+  auto name = getOutputPath() + "sketches_alpha_blending_" + start_str + "_" + end_str + ".csv";
   std::ofstream outputFile(name);
 
 
   outputFile << "index,isDense,total_bytes,mean,stddev,median" << std::endl;
 
-  for (int index=1; index<=1000; index++){
+  for (int index=start; index<=end; index++){
     std::cout << "INDEX: " << index << std::endl;
     Tensor<uint8_t> denseResult("denseResult", {1111*1111}, Format{Dense});
     {

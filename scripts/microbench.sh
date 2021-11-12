@@ -7,26 +7,28 @@
 
 set -u
 
-# out=/Users/danieldonenfeld/Developer/taco-compression-benchmarks/OUT_TEST/out_microbench/
-out=/data/scratch/danielbd/out_micro/
+SCRIPT_DIR=$(dirname $(readlink -f $0))
+ARTIFACT_DIR=$SCRIPT_DIR/../../
+
+cd $SCRIPT_DIR/..
+
+out=$ARTIFACT_DIR/out/micro/
+lanka=OFF
 mkdir -p "$out"
 
-TMP_BUILD_DIR="$(mktemp -d  $(pwd)/build_dirs/tmp.XXXXXXXXXX)"
-
-declare -a kinds=("DENSE" "SPARSE" "RLE")
-
-for ru in {1..400}
-# for ru in {1..1}
+declare -a kinds=("DENSE" "SPARSE" "RLE" "LZ77")
+for ru in {1..600}
 do
     RUNUP=$(( (ru * 10) ))
 
     for kind in "${kinds[@]}"
     do
         for i in {0..9}
-        # for i in {0..0}
         do
-            BENCH=micro_constmul BUILD_DIR=$TMP_BUILD_DIR BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
-            BENCH=micro_elemwise BUILD_DIR=$TMP_BUILD_DIR BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
+            BENCH=micro_constmul BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
+            BENCH=micro_elemwise BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench          
+            BENCH=micro_maskmul BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
+            BENCH=spmv_rand BENCH_KIND=$kind OUTPUT_PATH=$out RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
         done
     done
 done
