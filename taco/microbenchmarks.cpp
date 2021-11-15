@@ -218,7 +218,7 @@ void bench_constmul_rand(){
     taco::util::TimeResults timevalue{};
     const IndexVar i("i"), j("j"), c("c");
 
-    int repetitions = 100;
+    int repetitions = getNumRepetitions(100);
 
     auto cache_str = getEnvVar("CACHE");
     bool cold_cache = true;
@@ -313,7 +313,7 @@ void bench_elementwisemul_rand(){
     taco::util::TimeResults timevalue{};
     const IndexVar i("i"), j("j"), c("c");
 
-    int repetitions = 100;
+    int repetitions = getNumRepetitions(100);
 
     auto cache_str = getEnvVar("CACHE");
     bool cold_cache = true;
@@ -412,7 +412,7 @@ void bench_maskmul_rand(){
     taco::util::TimeResults timevalue{};
     const IndexVar i("i"), j("j"), c("c");
 
-    int repetitions = 100;
+    int repetitions = getNumRepetitions(100);
 
     auto cache_str = getEnvVar("CACHE");
     bool cold_cache = true;

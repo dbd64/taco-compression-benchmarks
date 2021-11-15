@@ -76,7 +76,7 @@ std::vector<uint8_t> raw_image_subtitle(std::string filename, int& w, int& h);
 std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
                                             int index, std::string prefix, Kind kind, int& numVals);
 std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
-                                             int index, std::string prefix, Kind kind, int& numVals);
+                                             int index, std::string prefix, Kind kind, int& numVals, int sparseVal = 0);
 std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h, int w, 
                                              int index, std::string prefix, Kind kind, int& numVals, int sparseVal = 0);
 
@@ -98,5 +98,6 @@ std::string to_string(Kind k);
 
 void writeHeader(std::ostream& os, int repetitions);
 
+int getNumRepetitions(int r);
 
 #endif

@@ -12,7 +12,7 @@ ARTIFACT_DIR=$SCRIPT_DIR/../../
 
 cd $SCRIPT_DIR/..
 
-out=$ARTIFACT_DIR/out/mri/
+out=$ARTIFACT_DIR/out/mri_temp/
 lanka=OFF
 mkdir -p "$out"
 
@@ -27,3 +27,7 @@ do
     LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="RLE" CACHE_KERNELS=0 make taco-bench
     LANKA=$lanka IMAGE_START=$START IMAGE_END=$END IMAGE_FOLDER="$imgs" OUTPUT_PATH="$out" BENCH="mri" BENCH_KIND="LZ77" CACHE_KERNELS=0 make taco-bench
 done
+
+python3 $SCRIPT_DIR/merge_csv.py $out $out/../mri.csv
+
+rm -r $out

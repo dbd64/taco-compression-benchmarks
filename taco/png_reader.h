@@ -165,15 +165,23 @@ std::vector<uint8_t> packLZ77_bytes(std::vector<TempValue<T>> vals){
   return bytes;
 }
 
-Index makeLZ77Index(const std::vector<int>& rowptr);
+Index makeLZ77Index(const std::vector<int>& rowptr, int numDense = 0);
+Index makeLZ77ImgIndex(const std::vector<int>& rowptr);
 
 template<typename T>
 TensorBase makeLZ77(const std::string& name, const std::vector<int>& dimensions,
                     const std::vector<int>& pos, const std::vector<uint8_t>& vals) {
-  taco_uassert(dimensions.size() == 1);
-  Tensor<T> tensor(name, dimensions, {LZ77});
+  // taco_uassert(dimensions.size() == 1);
+  std::vector<ModeFormatPack> fs;
+  for (int i = 0; i< dimensions.size()-1; i++) fs.push_back(Dense);
+  fs.push_back(LZ77);
+  Tensor<T> tensor(name, dimensions, Format(fs));
   auto storage = tensor.getStorage();
-  storage.setIndex(makeLZ77Index(pos));
+  if (dimensions.size()==2) {
+    storage.setIndex(makeLZ77ImgIndex(pos));
+  } else {
+    storage.setIndex(makeLZ77Index(pos));
+  }
   storage.setValues(makeArray(vals));
   tensor.setStorage(storage);
   return std::move(tensor);

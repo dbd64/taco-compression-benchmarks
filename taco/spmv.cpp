@@ -81,6 +81,39 @@ Tensor<int> makeRLEVector(std::string name, std::vector<int> v, int size){
     return t;
 }
 
+Tensor<int> to_lz77(int index, int width, int height, int run_upper, int& numVals, int& numBytes, 
+           std::uniform_int_distribution<int>& unif_vals, std::uniform_int_distribution<int>& unif_runs,
+           std::default_random_engine& gen){
+    std::vector<uint8_t> bytes;
+    std::vector<int> pos;
+    pos.push_back(0);
+    for (int i = 0; i< height; i++){
+        std::vector<TempValue<int>> m;
+        int label = unif_vals(gen);
+        int run_len = unif_runs(gen);
+        int remaining = width;
+        while (remaining > 0){
+            m.push_back(label);
+            run_len-=1; remaining -= 1; numVals++;
+            int count = std::min({run_len, 32767, remaining});
+            if (count) m.push_back(Repeat{1,count});
+            run_len -= count;
+            remaining -= count;
+            if (run_len == 0){
+                label = unif_vals(gen);
+                run_len = unif_runs(gen);
+            }
+        }
+        auto packed = packLZ77_bytes(m);
+        bytes.insert(bytes.end(), packed.begin(), packed.end());
+        pos.push_back(bytes.size());
+    }
+    numBytes = bytes.size();
+    auto t = makeLZ77<int>("mtx_rand" + std::to_string(index),
+                          {height,width}, pos, bytes);
+    return t;
+}
+
 std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, int run_upper, Kind kind, int& numVals, int& numBytes){
     std::default_random_engine gen(index);
     std::uniform_int_distribution<int> unif_vals(0, 255);
@@ -104,26 +137,32 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
 }
 
     // Load matrix
-    std::vector<int> m;
-    int label = unif_vals(gen);
-    int run_len = unif_runs(gen);
-    for (int i=0; i<width*height; i++){
-        if (run_len == 0 ){
-            label = unif_vals(gen);
-            run_len = unif_runs(gen);
+    Tensor<int> mat;
+    if (kind == Kind::LZ77){
+        mat = to_lz77(index, width, height, run_upper, numVals, numBytes, unif_vals, unif_runs, gen);
+    } else {
+        std::vector<int> m;
+        int label = unif_vals(gen);
+        int run_len = unif_runs(gen);
+        for (int i=0; i<width*height; i++){
+            if (run_len == 0 ){
+                label = unif_vals(gen);
+                run_len = unif_runs(gen);
+            }
+            m.push_back(label);
+            run_len--;
         }
-        m.push_back(label);
-        run_len--;
-    }
 
-    auto mat = to_tensor_int(m, height, width, 0, "mtx_rand", kind, numVals, 0);
-    numBytes = mat.second;
+        auto matr = to_tensor_int(m, height, width, 0, "mtx_rand", kind, numVals, 0);
+        mat = matr.first;
+        numBytes = matr.second;
+    }
 
 
     std::uniform_int_distribution<int> unif_vals_vec(1, 255);
     std::vector<int> v;
-    label = unif_vals_vec(gen);
-    run_len = unif_runs(gen);
+    int label = unif_vals_vec(gen);
+    int run_len = unif_runs(gen);
     int numValsVec = 1;
     for (int i=0; i<width; i++){
         if (run_len == 0 ){
@@ -137,7 +176,7 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
     Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
 
     numVals += numValsVec;
-    return {vec, mat.first};
+    return {vec, mat};
 }
 
 std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes){
@@ -229,8 +268,8 @@ void bench_spmv(){
     auto copy = getCopyFunc();
     taco::util::TimeResults timevalue{};
     const IndexVar i("i"), j("j"), c("c");
-
-    int repetitions = 100;
+    
+    int repetitions = getNumRepetitions(100);
 
     auto cache_str = getEnvVar("CACHE");
     bool cold_cache = true;
@@ -350,7 +389,7 @@ void bench_spmv_rand(){
     taco::util::TimeResults timevalue{};
     const IndexVar i("i"), j("j"), c("c");
 
-    int repetitions = 100;
+    int repetitions = getNumRepetitions(100);
 
     auto cache_str = getEnvVar("CACHE");
     bool cold_cache = true;

@@ -282,8 +282,12 @@ std::pair<std::vector<uint8_t>, int> packLZ77(std::vector<TempValue<T>> vals){
 //  return {values, size};
 }
 
-Index makeLZ77Index(const std::vector<int>& rowptr) {
-  return Index({LZ77},
+Index makeLZ77Index(const std::vector<int>& rowptr, int numDense) {
+  std::vector<ModeFormatPack> fs;
+  for (int i = 0; i< numDense; i++) fs.push_back(Dense);
+  fs.push_back(LZ77);
+
+  return Index(Format(fs),
                {ModeIndex({makeArray(rowptr)})});
 }
 

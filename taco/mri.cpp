@@ -168,7 +168,7 @@ void bench(std::string bench_kind){
   taco::util::TimeResults timevalue{};
   const IndexVar i("i"), j("j");
 
-  int repetitions = 100;
+  int repetitions = getNumRepetitions(100);
   
 
   Kind kind;

@@ -82,7 +82,7 @@ void movie_mask_mul_bench(){
  taco::util::TimeResults timevalue{};
  const IndexVar i("i"), j("j"), c("c");
 
- int repetitions = 100;
+ int repetitions = getNumRepetitions(100);
 
  auto bench_kind = getEnvVar("BENCH_KIND");
  Kind kind;

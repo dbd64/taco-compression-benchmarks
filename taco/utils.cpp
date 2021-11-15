@@ -163,7 +163,7 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> imag
 }
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
-                                             int index, std::string prefix, Kind kind, int& numVals){
+                                             int index, std::string prefix, Kind kind, int& numVals, int sparseVal){
   if (kind == Kind::DENSE){
     auto t = makeDense_2(prefix+"dense_" + std::to_string(index), {h,w}, image);
     numVals = h*w;
@@ -177,10 +177,10 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
                           {0, (int)packed.size()}, packed);
     return {t, packed.size()};
   } else if (kind == Kind::SPARSE){
-    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, 0};
+    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
     for (int row=0; row<h; row++){
       for (int col=0; col<w; col++){
-        if (image[row*w + col] != 0){
+        if (image[row*w + col] != sparseVal){
             t(row,col) = image[row*w + col];
         }
       }
@@ -403,4 +403,9 @@ void writeHeader(std::ostream& os, int repetitions){
   os << repetitions-1 << ",";
   os << "out_bytes,out_vals";
   os << std::endl;
+}
+
+int getNumRepetitions(int r){
+  auto rep = getEnvVar("REPETITIONS");
+  return rep == "" ? r :  std::stoi(rep);
 }

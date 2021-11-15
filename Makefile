@@ -76,7 +76,7 @@ opencv: check-and-reinit-submodules
 	make -j$(NPROC_VAL) && \
 	make install
 
-opencv_bench: opencv
+opencv_bench/build/opencv_bench: opencv
 	mkdir -p opencv_bench/build && \
 	cd opencv_bench/build && \
 	CMAKE_PREFIX_PATH=../../opencv/install/ cmake .. && \

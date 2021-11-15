@@ -27,3 +27,6 @@ do
 
     LANKA=OFF IMAGE_FOLDER=$imgs OUTPUT_PATH="$out" BENCH="sketch" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench 
 done
+
+python3 $SCRIPT_DIR/merge_csv.py $out $out/../sketch_alpha.csv sketches_alpha_blending_
+rm -r $out

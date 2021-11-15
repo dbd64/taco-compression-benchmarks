@@ -143,7 +143,7 @@ void brighten_bench(){
   taco::util::TimeResults timevalue{};
   const IndexVar i("i"), j("j"), f("f"), c("c");
 
-  int repetitions = 100; 
+  int repetitions = getNumRepetitions(100);
 
   std::cout << "start,end,kind,total_bytes,mean,stddev,median" << std::endl;
 

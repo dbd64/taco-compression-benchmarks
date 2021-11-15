@@ -54,7 +54,26 @@ using namespace cv;
 }
 
 
+
+std::string getEnvVar(std::string varname) {
+  auto path = std::getenv(varname.c_str());
+  if (path == nullptr) {
+    return "";
+  }
+  return std::string(path);
+}
+
 int NUM_IMGS = 340;
+
+int getNumRepetitions(int r){
+  auto rep = getEnvVar("REPETITIONS");
+  return rep == "" ? r :  std::stoi(rep);
+}
+
+void updateNumImgs(){
+  auto rep = getEnvVar("NUM_IMGS");
+  NUM_IMGS = rep == "" ? NUM_IMGS :  std::stoi(rep);
+}
 
 void writeHeader(std::ostream& outputFile, int repetition){
     outputFile << "index,mean,stddev,median,";
@@ -67,12 +86,12 @@ void writeHeader(std::ostream& outputFile, int repetition){
 void mri_cold(std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(100);
     std::ofstream outputFile(outfile);
 
     writeHeader(outputFile, repetition);
 
-    std::string folder = "/data/scratch/danielbd/taco-compression-benchmarks2/out/roi/validation/";
+    std::string folder = "/home/artifact/artifact/data/mri/";
 
     std::vector<std::vector<double>> times;
     for (int i = 0; i < 253; i++){
@@ -115,12 +134,12 @@ void mri_cold(std::string outfile){
 void mri(std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 1000;
+    int repetition = getNumRepetitions(1000);
     std::ofstream outputFile(outfile);
 
     writeHeader(outputFile, repetition);
 
-    std::string folder = "/data/scratch/danielbd/taco-compression-benchmarks2/out/roi/validation/";
+    std::string folder = "/home/artifact/artifact/data/mri/";
     for (int i=1; i<=253; i++){
         std::cout << "MRI: " << i << std::endl;
         Mat t1  = imread(folder + "img_t1_DENSE_" +  std::to_string(i) + ".png", IMREAD_GRAYSCALE);
@@ -137,7 +156,7 @@ void mri(std::string outfile){
         }, "Compute", repetition, outputFile);
 
         // out *= 255;
-        // imwrite("/data/scratch/danielbd/opencv_bench/out/mri/" + std::to_string(i) + ".png", out);
+        // imwrite("/home/artifact/artifact/out/opencv/mri/" + std::to_string(i) + ".png", out);
     }
 }
 
@@ -156,14 +175,10 @@ Mat global;
 void brighten(std::string folder, std::string validation, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(10);
     std::ofstream outputFile(outfile);
 
     writeHeader(outputFile, repetition);
-
-    if (folder == "/data/scratch/danielbd/clips/stock_videos/pink_bars/"){
-      NUM_IMGS = 297;
-    }
 
     std::vector<std::vector<double>> times;
     for (int i = 0; i < NUM_IMGS; i++){
@@ -197,28 +212,6 @@ void brighten(std::string folder, std::string validation, std::string outfile){
       }
       outputFile << times[i][repeat-1] << std::endl;
     }
-
-    if (folder == "/data/scratch/danielbd/clips/stock_videos/pink_bars/"){
-      NUM_IMGS = 340;
-    }
-
-    // for (int i=1; i<=NUM_IMGS; i++){
-    //   auto path = numToPath(i, folder);
-    //   std::cout << "brighten: " << path << std::endl;
-    //   Mat img = imread(path, IMREAD_COLOR);
-
-    //   outputFile << std::to_string(i) << ",";
-    //   Mat new_image;
-    //   TOOL_BENCHMARK_REPEAT_COLD_TD({
-    //     img.convertTo(new_image, -1, 1, 20);
-    //     DoNotOptimize(new_image);
-    //   }, {
-    //     global = new_image;
-    //     new_image.deallocate();
-    //   }, "Compute", repetition, outputFile);
-
-    //   // imwrite(validation + std::to_string(i) + ".png", img);
-    // }
 }
 
 void  __attribute__ ((noinline)) alpha_kernel(int repetition, Mat& img1, Mat& img2, double alpha, double beta, std::ostream& outputFile){
@@ -234,7 +227,7 @@ void  __attribute__ ((noinline)) alpha_kernel(int repetition, Mat& img1, Mat& im
 void alpha(std::string folder1, std::string folder2, std::string validation, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(100);
     // std::ofstream outputFile(outfile);
     std::ostream& outputFile = std::cout;
 
@@ -259,8 +252,6 @@ void alpha(std::string folder1, std::string folder2, std::string validation, std
 
         Mat dst;
         addWeighted( img1, alpha, img2, beta, 0.0, dst);
-
-        imwrite("/data/scratch/danielbd/opencv_bench/temp/alpha" + std::to_string(i) + ".png", dst);
     }
 }
 
@@ -282,7 +273,7 @@ Mat generateMask(const Mat& img1){
 void mask(std::string folder1, std::string folder2, std::string validation, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(100);
     // std::ofstream outputFile(outfile);
     std::ostream& outputFile = std::cout;
 
@@ -324,7 +315,7 @@ void mask(std::string folder1, std::string folder2, std::string validation, std:
 void read(std::string folder, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 25;
+    int repetition = getNumRepetitions(25);
     std::ofstream outputFile(outfile);
 
     writeHeader(outputFile, repetition);
@@ -349,7 +340,7 @@ void read(std::string folder, std::string outfile){
 void compress(std::string folder, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(100);
     std::ofstream outputFile(outfile);
 
     writeHeader(outputFile, repetition);
@@ -371,17 +362,14 @@ void compress(std::string folder, std::string outfile){
 void subtitle(std::string folder1, std::string validation, std::string outfile){
     TimeResults timevalue{};
     bool time = true;
-    int repetition = 100;
+    int repetition = getNumRepetitions(10);
     std::ofstream outputFile(outfile);
-    // std::ostream& outputFile = std::cout;
-
-    // std::string path = "/data/scratch/danielbd/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
 
     auto path1 = numToPath(1, folder1);
     Mat img1 = imread(path1, IMREAD_COLOR);
     int width = img1.size().width;
     int height = img1.size().height;
-    std::string subtitlePath = "/data/scratch/danielbd/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
+    std::string subtitlePath = "/home/artifact/artifact/data/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
     Mat s = imread(subtitlePath, IMREAD_UNCHANGED);
     Mat subtitle = Mat::zeros( cv::Size(width, height), CV_8U );
     Mat mask = Mat::zeros( cv::Size(width, height), CV_8U );
@@ -424,14 +412,62 @@ void subtitle(std::string folder1, std::string validation, std::string outfile){
     }
 }
 
+void alpha_sketch_cold(std::string folder, std::string validation, std::string outfile){
+    TimeResults timevalue{};
+    bool time = true;
+    int repetition = getNumRepetitions(10);
+    std::ofstream outputFile(outfile);
 
+    writeHeader(outputFile, repetition);
 
-std::string getEnvVar(std::string varname) {
-  auto path = std::getenv(varname.c_str());
-  if (path == nullptr) {
-    return "";
-  }
-  return std::string(path);
+    auto alpha = 0.5;
+
+    int start = 0;
+    NUM_IMGS = 1000;
+
+    std::vector<std::vector<double>> times;
+    for (int i = start; i < NUM_IMGS; i++){
+      times.push_back({});
+    }
+
+    for (int r=0; r<repetition; r++){
+      for (int i=1; i<=NUM_IMGS; i++){
+        std::ostringstream stringStream;
+        stringStream << folder;
+        stringStream << i << ".png";
+        std::string path1 = stringStream.str();
+
+        std::ostringstream stringStream2;
+        stringStream2 << folder;
+        stringStream2 << i+1000 << ".png";
+        std::string path2 = stringStream2.str();
+
+        std::cout << "alpha sketch (" << r << ") : " << path1 << std::endl;
+        Mat img1 = imread(path1, IMREAD_GRAYSCALE);
+        std::cout << "alpha sketch (" << r << ") : " << path2 << std::endl;
+        Mat img2 = imread(path2, IMREAD_GRAYSCALE);
+
+        TACO_TIME_REPEAT({
+          Mat dst;
+          addWeighted(img1, alpha, img2, alpha, 0.0, dst);
+          DoNotOptimize(dst);
+        }, {}, 1, timevalue, true);
+        times[i].push_back(timevalue.mean);
+        std::cout << "time " << r << ", " << i << " : " << timevalue.mean << std::endl;
+      }
+    }
+
+    for (int i=1; i<=NUM_IMGS; i++){
+      int repeat = static_cast<int>(times[i].size());
+      double mean=0.0;
+      mean = accumulate(times[i].begin(), times[i].end(), 0.0);
+      mean = mean/repeat;
+      outputFile << std::to_string(i) << "," << mean << ",,,";
+      for (int j=0; j< repeat-1; j++){
+        outputFile << times[i][j] << ",";
+      }
+      outputFile << times[i][repeat-1] << std::endl;
+    }
 }
 
 int main(){
@@ -440,57 +476,22 @@ int main(){
   auto folder2 = getEnvVar("PATH2");
   auto name = getEnvVar("NAME");
 
-  std::vector<string> folders{
-    "/data/scratch/danielbd/clips/bs_1600/scene1/",
-    "/data/scratch/danielbd/clips/bs_1600/scene2/",
-    "/data/scratch/danielbd/clips/bs_1600/scene3/",
-    "/data/scratch/danielbd/clips/bs_1600/title/",
-    "/data/scratch/danielbd/clips/ed_1600/scene1/",
-    "/data/scratch/danielbd/clips/ed_1600/scene2/",
-    "/data/scratch/danielbd/clips/ed_1600/scene3/",
-    "/data/scratch/danielbd/clips/ed_1600/scene4/",
-    "/data/scratch/danielbd/clips/sita/intro_flat/",
-    "/data/scratch/danielbd/clips/sita/flat_textures/",
-    "/data/scratch/danielbd/clips/sita/drawn_flat/",
-    "/data/scratch/danielbd/clips/sita/images_background/"
-  };
-
-  std::vector<string> names{
-    "bs_scene1", "bs_scene2", "bs_scene3", "bs_title",
-    "ed_scene1", "ed_scene2", "ed_scene3", "ed_scene4",
-    "sita_intro_flat", "sita_flat_textures", "sita_drawn_flat", "sita_images_background"
-  };
+  updateNumImgs();
 
   if (bench == "mri"){
-    // mri("/data/scratch/danielbd/opencv_bench/out_cold/mri.csv");
-    mri_cold("/data/scratch/danielbd/opencv_bench/out_cold/mri_cold.csv");
+    mri_cold("/home/artifact/artifact/out/opencv/mri.csv");
   } else if (bench == "brighten"){
-    brighten(folder1, "/data/scratch/danielbd/opencv_bench/out/brighten/validation/" + name + "/",
-          "/data/scratch/danielbd/opencv_bench/out_cold/brighten_cold/" + name + ".csv");
-    // for (int i=0; i<folders.size(); i++){
-    //   brighten(folders[i], "/data/scratch/danielbd/opencv_bench/out/brighten/validation/" + names[i] + "/", 
-    //           "/data/scratch/danielbd/opencv_bench/out_cold/brighten/" + names[i] + ".csv");
-    // }
+    brighten(folder1, "", "/home/artifact/artifact/out/opencv/brighten/" + name + ".csv");
   } else if (bench == "alpha"){ 
-    alpha(folder1, folder2, "/data/scratch/danielbd/opencv_bench/out/alpha/validation/" + name + "/",
-      "/data/scratch/danielbd/opencv_bench/out_cold/alpha/" + name + ".csv");
-    // for (int i=0; i<folders.size()/2; i++){
-    //   alpha(folders[2*i], folders[2*i + 1], "/data/scratch/danielbd/opencv_bench/out/alpha/validation/" + names[2*i] + "/", 
-    //           "/data/scratch/danielbd/opencv_bench/out_cold/alpha/" + names[2*i] + ".csv");
-    // }
+    // alpha(folder1, folder2, "", "/home/artifact/artifact/out/opencv/alpha/" + name + ".csv");
+    alpha_sketch_cold("/home/artifact/artifact/data/sketches/", "",  "/home/artifact/artifact/out/opencv/alpha_sketch.csv");
   } else if (bench == "mask"){
-    mask(folder1, folder2, "/data/scratch/danielbd/opencv_bench/out/mask_funcs/validation/" + name + "/",
-      "/data/scratch/danielbd/opencv_bench/out_cold/mask_funcs/" + name + ".csv");
-    // for (int i=0; i<folders.size()/2; i++){
-    //   mask(folders[2*i], folders[2*i + 1], "/data/scratch/danielbd/opencv_bench/out/mask_funcs/validation/" + names[2*i] + "/", 
-    //           "/data/scratch/danielbd/opencv_bench/out_cold/mask_funcs/" + names[2*i] + ".csv");
-    // }
+    mask(folder1, folder2, "", "/home/artifact/artifact/out/opencv/mask/" + name + ".csv");
   } else if (bench == "read"){
-    read(folder1, "/data/scratch/danielbd/opencv_bench/out_cold/read/" + name + ".csv");
+    read(folder1, "/home/artifact/artifact/out/opencv/read/" + name + ".csv");
   } else if (bench == "compress"){
-    compress(folder1, "/data/scratch/danielbd/opencv_bench/out_cold/compress/" + name + ".csv");
+    compress(folder1, "/home/artifact/artifact/out/opencv/compress/" + name + ".csv");
   } else if (bench == "subtitle"){
-    subtitle(folder1, "/data/scratch/danielbd/opencv_bench/out/subtitle/validation/" + name + "/",
-      "/data/scratch/danielbd/opencv_bench/out_cold/subtitle/" + name + ".csv");
+    subtitle(folder1, "", "/home/artifact/artifact/out/opencv/subtitle/" + name + ".csv");
   }
 }
