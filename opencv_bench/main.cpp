@@ -64,6 +64,8 @@ std::string getEnvVar(std::string varname) {
 }
 
 int NUM_IMGS = 340;
+std::string artifact_root = "/home/artifact/artifact";
+
 
 int getNumRepetitions(int r){
   auto rep = getEnvVar("REPETITIONS");
@@ -91,7 +93,7 @@ void mri_cold(std::string outfile){
 
     writeHeader(outputFile, repetition);
 
-    std::string folder = "/home/artifact/artifact/data/mri/";
+    std::string folder = artifact_root + "/data/mri/";
 
     std::vector<std::vector<double>> times;
     for (int i = 0; i < 253; i++){
@@ -139,7 +141,7 @@ void mri(std::string outfile){
 
     writeHeader(outputFile, repetition);
 
-    std::string folder = "/home/artifact/artifact/data/mri/";
+    std::string folder = artifact_root + "/data/mri/";
     for (int i=1; i<=253; i++){
         std::cout << "MRI: " << i << std::endl;
         Mat t1  = imread(folder + "img_t1_DENSE_" +  std::to_string(i) + ".png", IMREAD_GRAYSCALE);
@@ -156,7 +158,7 @@ void mri(std::string outfile){
         }, "Compute", repetition, outputFile);
 
         // out *= 255;
-        // imwrite("/home/artifact/artifact/out/opencv/mri/" + std::to_string(i) + ".png", out);
+        // imwrite(artifact_root + "/out/opencv/mri/" + std::to_string(i) + ".png", out);
     }
 }
 
@@ -369,7 +371,7 @@ void subtitle(std::string folder1, std::string validation, std::string outfile){
     Mat img1 = imread(path1, IMREAD_COLOR);
     int width = img1.size().width;
     int height = img1.size().height;
-    std::string subtitlePath = "/home/artifact/artifact/data/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
+    std::string subtitlePath = artifact_root + "/data/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
     Mat s = imread(subtitlePath, IMREAD_UNCHANGED);
     Mat subtitle = Mat::zeros( cv::Size(width, height), CV_8U );
     Mat mask = Mat::zeros( cv::Size(width, height), CV_8U );
@@ -478,21 +480,25 @@ int main(){
   auto name = getEnvVar("NAME");
 
   updateNumImgs();
+  if (getEnvVar("ARTIFACT_ROOT") != ""){
+    artifact_root = getEnvVar("ARTIFACT_ROOT");
+  }
+
 
   if (bench == "mri"){
-    mri_cold("/home/artifact/artifact/out/opencv/mri.csv");
+    mri_cold(artifact_root + "/out/opencv/mri.csv");
   } else if (bench == "brighten"){
-    brighten(folder1, "", "/home/artifact/artifact/out/opencv/brighten/" + name + ".csv");
+    brighten(folder1, "", artifact_root + "/out/opencv/brighten/" + name + ".csv");
   } else if (bench == "alpha"){ 
-    // alpha(folder1, folder2, "", "/home/artifact/artifact/out/opencv/alpha/" + name + ".csv");
-    alpha_sketch_cold("/home/artifact/artifact/data/sketches/", "",  "/home/artifact/artifact/out/opencv/alpha_sketch.csv");
+    // alpha(folder1, folder2, "", artifact_root + "/out/opencv/alpha/" + name + ".csv");
+    alpha_sketch_cold(artifact_root + "/data/sketches/", "",  artifact_root + "/out/opencv/alpha_sketch.csv");
   } else if (bench == "mask"){
-    mask(folder1, folder2, "", "/home/artifact/artifact/out/opencv/mask/" + name + ".csv");
+    mask(folder1, folder2, "", artifact_root + "/out/opencv/mask/" + name + ".csv");
   } else if (bench == "read"){
-    read(folder1, "/home/artifact/artifact/out/opencv/read/" + name + ".csv");
+    read(folder1, artifact_root + "/out/opencv/read/" + name + ".csv");
   } else if (bench == "compress"){
-    compress(folder1, "/home/artifact/artifact/out/opencv/compress/" + name + ".csv");
+    compress(folder1, artifact_root + "/out/opencv/compress/" + name + ".csv");
   } else if (bench == "subtitle"){
-    subtitle(folder1, "", "/home/artifact/artifact/out/opencv/subtitle/" + name + ".csv");
+    subtitle(folder1, "", artifact_root + "/out/opencv/subtitle/" + name + ".csv");
   }
 }

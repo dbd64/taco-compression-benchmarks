@@ -18,21 +18,24 @@ do
     esac
 done
 
+SCRIPT_DIR=$(dirname $(readlink -f $0))
+ARTIFACT_DIR=$SCRIPT_DIR/../..
+
 #Build opencv_bench
-mkdir -p /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build
-pushd /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build
-cmake /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/
+mkdir -p $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build
+pushd $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build
+cmake $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/
 make
 popd
 
 # Run benchmarks
-mkdir -p /home/artifact/artifact/out/opencv/
-BENCH=mri REPETITIONS=$REPETITIONS /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=alpha REPETITIONS=$REPETITIONS NUM_IMGS=$ALPHA_IMGS /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+mkdir -p $ARTIFACT_DIR/out/opencv/
+BENCH=mri REPETITIONS=$REPETITIONS $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+BENCH=alpha REPETITIONS=$REPETITIONS NUM_IMGS=$ALPHA_IMGS $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build/opencv-bench
 
-CLIPS_ROOT=/home/artifact/artifact/data/clips
-mkdir -p /home/artifact/artifact/out/opencv/brighten/
-mkdir -p /home/artifact/artifact/out/opencv/subtitle/
+CLIPS_ROOT=$ARTIFACT_DIR/data/clips
+mkdir -p $ARTIFACT_DIR/out/opencv/brighten/
+mkdir -p $ARTIFACT_DIR/out/opencv/subtitle/
 for suite in ${videosuites[@]}
 do
     unset clipsList
@@ -46,7 +49,7 @@ do
 
     for clip in ${clipsList[@]}
     do
-        BENCH=brighten REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-        BENCH=subtitle REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+        BENCH=brighten REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+        BENCH=subtitle REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build/opencv-bench
     done
 done

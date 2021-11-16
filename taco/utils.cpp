@@ -269,6 +269,9 @@ std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std:
 
 std::pair<Tensor<uint8_t>, Tensor<uint8_t>> read_subtitle_mask(Kind kind, int width, int height, int& maskBytes, int& maskVals, int& imgBytes, int& imgVals){
   std::string path = "/home/artifact/artifact/data/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
+  if (getEnvVar("ARTIFACT_ROOT") != ""){
+    path = getEnvVar("ARTIFACT_ROOT") + "/data/clips/subtitle_" + std::to_string(width) + "_" + std::to_string(height) + ".png";
+  }
   auto image = raw_image_subtitle(path, width, height);
   std::vector<uint8_t> mask;
   std::vector<uint8_t> img;
