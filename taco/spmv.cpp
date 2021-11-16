@@ -423,8 +423,8 @@ void bench_spmv_rand(){
     }
 
 
-    int width = 1000;
-    int height = 10000;
+    int width = getIntEnvVar("RAND_WIDTH", 1000);
+    int height = getIntEnvVar("RAND_HEIGHT", 10000);
     auto run_upper_str = getEnvVar("RUN_UPPER");
     int run_upper = std::stoi(run_upper_str);
 

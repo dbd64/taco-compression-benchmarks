@@ -1,10 +1,23 @@
 #!/bin/bash
-#SBATCH -N 1
-#SBATCH --mem 120000
-#SBATCH -p lanka-v3
-#SBATCH --exclusive
-
 set -u
+
+RU_UPPER_BOUND=40
+NUM_RAND=10
+RUN_MULTIPLIER=10
+REPETITIONS=100
+RAND_WIDTH=1000
+RAND_HEIGHT=10000
+
+while getopts s flag
+do
+    case "${flag}" in
+        s) RU_UPPER_BOUND=10
+           NUM_RAND=3
+           RUN_MULTIPLIER=40
+           REPETITIONS=10
+           ;;
+    esac
+done
 
 SCRIPT_DIR=$(dirname $(readlink -f $0))
 ARTIFACT_DIR=$SCRIPT_DIR/../../
@@ -18,19 +31,21 @@ mkdir -p "$out/elemwise/"
 mkdir -p "$out/maskmul/"
 mkdir -p "$out/spmv/"
 
+make taco/build/taco-bench
+
 declare -a kinds=("DENSE" "SPARSE" "RLE" "LZ77")
-for ru in {1..600}
+for ru in $( seq 1 $RU_UPPER_BOUND ) 
 do
-    RUNUP=$(( (ru * 10) ))
+    RUNUP=$(( (ru * $RUN_MULTIPLIER) ))
 
     for kind in "${kinds[@]}"
     do
-        for i in {0..9}
+        for i in $( seq 0 $(( ($NUM_RAND - 1) )) )
         do
-            BENCH=micro_constmul BENCH_KIND=$kind OUTPUT_PATH=$out/constmul/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
-            BENCH=micro_elemwise BENCH_KIND=$kind OUTPUT_PATH=$out/elemwise/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench          
-            BENCH=micro_maskmul BENCH_KIND=$kind OUTPUT_PATH=$out/maskmul/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
-            BENCH=spmv_rand BENCH_KIND=$kind OUTPUT_PATH=$out/spmv/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench
+            BENCH=micro_constmul RAND_WIDTH=$RAND_WIDTH RAND_HEIGHT=$RAND_HEIGHT REPETITIONS=$REPETITIONS BENCH_KIND=$kind OUTPUT_PATH=$out/constmul/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench-nodep
+            BENCH=micro_elemwise RAND_WIDTH=$RAND_WIDTH RAND_HEIGHT=$RAND_HEIGHT REPETITIONS=$REPETITIONS BENCH_KIND=$kind OUTPUT_PATH=$out/elemwise/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench-nodep          
+            BENCH=micro_maskmul RAND_WIDTH=$RAND_WIDTH RAND_HEIGHT=$RAND_HEIGHT REPETITIONS=$REPETITIONS BENCH_KIND=$kind OUTPUT_PATH=$out/maskmul/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench-nodep
+            BENCH=spmv_rand RAND_WIDTH=$RAND_WIDTH RAND_HEIGHT=$RAND_HEIGHT REPETITIONS=$REPETITIONS BENCH_KIND=$kind OUTPUT_PATH=$out/spmv/ RUN_UPPER=$RUNUP INDEX=$i CACHE_KERNELS=0 make taco-bench-nodep
         done
     done
 done

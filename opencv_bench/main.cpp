@@ -423,7 +423,8 @@ void alpha_sketch_cold(std::string folder, std::string validation, std::string o
     auto alpha = 0.5;
 
     int start = 0;
-    NUM_IMGS = 1000;
+    auto rep = getEnvVar("NUM_IMGS");
+    NUM_IMGS = rep == "" ? 1000 :  std::stoi(rep);
 
     std::vector<std::vector<double>> times;
     for (int i = start; i < NUM_IMGS; i++){

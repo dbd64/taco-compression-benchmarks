@@ -97,23 +97,25 @@ Func MaskMul_universe("mul_universe", MaskMulOp(), universeAlgebra());
 
 Tensor<int> gen_mask(Kind kind, int w, int h, int& maskBytes, int& maskVals, bool linearize){
   std::pair<Tensor<int>, int> p;
-  double halfWidth = ((double)w)/2;
-//   if (linearize){
-//     vector<int> vals(w*h*3, 0);
-//     for (int r=0; r<h; r++){
-//       for (int c=w/2; c<w; c++){
-//         for (int color=0; color<3; color++){
-//           vals[r*w*3 + c*3 + color] = (255 * (c/halfWidth - 1));
-//         }
-//       }
-//     }
-//     p = to_vector_int(vals, h, w, 0, "mask_", kind, maskVals);
-//   } else 
+//   double halfWidth = w - ((double)w)/8;
+  int start_col = w - (w/8);
+  if (linearize){
+    // vector<int> vals(w*h*3, 0);
+    Tensor<int> t{"mask_sparse", {h*w}, {Sparse}, 0};
+    for (int r=0; r<h; r++){
+      for (int c=start_col; c<w; c++){
+        t(r*w + c) = 1; //(255 * (c/halfWidth - 1));
+      }
+    }
+    t.pack();
+    maskVals = t.getStorage().getValues().getSize();
+    p = {t, t.getStorage().getValues().getSize()*2};
+  } else 
   {
     vector<int> vals(w*h, 0);
     for (int r=0; r<h; r++){
-      for (int c=w/2; c<w; c++){
-        vals[r*w + c] = (255 * (c/halfWidth - 1));
+      for (int c=start_col; c<w; c++){
+        vals[r*w + c] = 1; // (255 * (c/halfWidth - 1));
       }
     }
     p = to_tensor_int(vals, h, w, 0,"mask_", kind, maskVals);
@@ -194,7 +196,7 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
 
         auto mat = to_tensor_int(m, height, width, 0, "mtx_rand_" + std::to_string(index), kind, numVals, 0);
         numBytes = mat.second;
-        numVals += numValsVec;
+        // numVals += numValsVec;
         return {vec, mat.first};
     }
 }
@@ -252,8 +254,8 @@ void bench_constmul_rand(){
     }
 
 
-    int width = 1000;
-    int height = 10000;
+    int width = getIntEnvVar("RAND_WIDTH", 1000);
+    int height = getIntEnvVar("RAND_HEIGHT", 10000);
     auto run_upper_str = getEnvVar("RUN_UPPER");
     int run_upper = std::stoi(run_upper_str);
 
@@ -277,8 +279,13 @@ void bench_constmul_rand(){
 
         std::cout << matrix.getDimensions() << std::endl;
 
-        Tensor<uint8_t> out("out", matrix.getDimensions(), {Dense});
-        IndexStmt stmt = (out(i,j) = func(matrix(i,j)));
+        Tensor<uint8_t> out("out", matrix.getDimensions(), f);
+        IndexStmt stmt;
+        if (kind == Kind::LZ77){
+            stmt = (out(i) = func(matrix(i)));
+        } else {
+            stmt = (out(i,j) = func(matrix(i,j)));
+        }
 
         out.setAssembleWhileCompute(true);
         out.compile();
@@ -347,8 +354,8 @@ void bench_elementwisemul_rand(){
     }
 
 
-    int width = 1000;
-    int height = 10000;
+    int width = getIntEnvVar("RAND_WIDTH", 1000);
+    int height = getIntEnvVar("RAND_HEIGHT", 10000);
     auto run_upper_str = getEnvVar("RUN_UPPER");
     int run_upper = std::stoi(run_upper_str);
 
@@ -365,18 +372,25 @@ void bench_elementwisemul_rand(){
 
     // for (int index=start; index<=end; index++)
     {
-        int numVals = 0;
-        int numBytes = 0;
-        auto ins = gen_rand(index, width, height, run_upper, kind, numVals, numBytes);
+        int numVals0 = 0;
+        int numBytes0 = 0;
+        auto ins = gen_rand(index, width, height, run_upper, kind, numVals0, numBytes0);
         Tensor<int> matrix = ins.second;
 
-        auto ins1 = gen_rand(index+10, width, height, run_upper, kind, numVals, numBytes);
+        int numVals1 = 0;
+        int numBytes1 = 0;
+        auto ins1 = gen_rand(index+10, width, height, run_upper, kind, numVals1, numBytes1);
         Tensor<int> matrix1 = ins1.second;
 
         std::cout << matrix.getDimensions() << std::endl;
 
-        Tensor<uint8_t> out("out", matrix.getDimensions(), {Dense});
-        IndexStmt stmt = (out(i,j) = func(matrix(i,j), matrix1(i,j)));
+        Tensor<uint8_t> out("out", matrix.getDimensions(), f);
+        IndexStmt stmt;
+        if (kind == Kind::LZ77){
+            stmt = (out(i) = func(matrix(i), matrix1(i)));
+        } else {
+            stmt = (out(i,j) = func(matrix(i,j), matrix1(i,j)));
+        }
 
         out.setAssembleWhileCompute(true);
         out.compile();
@@ -386,7 +400,7 @@ void bench_elementwisemul_rand(){
         taco_tensor_t* a1 = matrix.getStorage();
         taco_tensor_t* a2 = matrix1.getStorage();
 
-        outputFile << index << "," << bench_kind << "," << width << "," << height << "," << run_upper << "," << numVals << "," << numBytes  << ",";
+        outputFile << index << "," << bench_kind << "," << width << "," << height << "," << run_upper << "," << numVals0 + numVals1 << "," << numBytes0 + numBytes1  << ",";
         if (cold_cache){
             TOOL_BENCHMARK_REPEAT({
                 k.compute(a0,a1,a2);
@@ -446,8 +460,8 @@ void bench_maskmul_rand(){
     }
 
 
-    int width = 1000;
-    int height = 10000;
+    int width = getIntEnvVar("RAND_WIDTH", 1000);
+    int height = getIntEnvVar("RAND_HEIGHT", 10000);
     auto run_upper_str = getEnvVar("RUN_UPPER");
     int run_upper = std::stoi(run_upper_str);
 
@@ -471,12 +485,17 @@ void bench_maskmul_rand(){
 
         int maskVals = 0;
         int maskBytes = 0;
-        auto matrix1 = gen_mask(Kind::SPARSE, width, height, maskBytes, maskVals, false); //gen_rand(index+10, width, height, run_upper, kind, numVals, numBytes);
+        auto matrix1 = gen_mask(Kind::SPARSE, width, height, maskBytes, maskVals, kind == Kind::LZ77); //gen_rand(index+10, width, height, run_upper, kind, numVals, numBytes);
 
         std::cout << matrix.getDimensions() << std::endl;
 
-        Tensor<uint8_t> out("out", matrix.getDimensions(), {Dense});
-        IndexStmt stmt = (out(i,j) = func(matrix(i,j), matrix1(i,j)));
+        Tensor<uint8_t> out("out", matrix.getDimensions(), f);
+        IndexStmt stmt;
+        if (kind == Kind::LZ77){
+            stmt = (out(i) = func(matrix(i), matrix1(i)));
+        } else {
+            stmt = (out(i,j) = func(matrix(i,j), matrix1(i,j)));
+        }
 
         out.setAssembleWhileCompute(true);
         out.compile();

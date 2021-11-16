@@ -818,7 +818,9 @@ void sketch_alpha_blending(){
   bool time = true;
   taco::util::TimeResults timevalue{};
 
-  int repetitions = getValidationOutputPath() == "" ? 1000 : 1; 
+  auto rep = getEnvVar("REPETITIONS");
+  auto numRep = rep == "" ? 1000 :  std::stoi(rep);
+  int repetitions = getValidationOutputPath() == "" ? numRep : 1; 
 
   auto start_str = getEnvVar("IMAGE_START");
   if (start_str == "") {

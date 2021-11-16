@@ -1,31 +1,22 @@
 #!/bin/bash
 
-#Helper variables
-FOLDER0="/home/artifact/artifact/data/clips/stock/paperclips/"
-FOLDER1="/home/artifact/artifact/data/clips/stock/pink_bars/"
-FOLDER2="/home/artifact/artifact/data/clips/stock/ppt/"
-FOLDER3="/home/artifact/artifact/data/clips/stock/rect_bkgd/"
-FOLDER4="/home/artifact/artifact/data/clips/ed/scene1/"
-FOLDER5="/home/artifact/artifact/data/clips/ed/scene2/"
-FOLDER6="/home/artifact/artifact/data/clips/ed/scene3/"
-FOLDER7="/home/artifact/artifact/data/clips/ed/scene4/"
-FOLDER8="/home/artifact/artifact/data/clips/sita/intro_flat/"
-FOLDER9="/home/artifact/artifact/data/clips/sita/flat_textures/"
-FOLDER10="/home/artifact/artifact/data/clips/sita/drawn_flat/"
-FOLDER11="/home/artifact/artifact/data/clips/sita/images_background/"
+videosuites=('ed:scene1,scene2,scene3,scene4' 'sita:intro_flat,flat_textures,drawn_flat,images_background' 'stock:paperclips,pink_bars,ppt,rect_bkgd')
 
-NAME0="paperclips"
-NAME1="pink_bars"
-NAME2="ppt"
-NAME3="rect_bkgd"
-NAME4="ed_scene1"
-NAME5="ed_scene2"
-NAME6="ed_scene3"
-NAME7="ed_scene4"
-NAME8="sita_intro_flat"
-NAME9="sita_flat_textures"
-NAME10="sita_drawn_flat" 
-NAME11="sita_images_background"
+REPETITIONS=100
+REPETITIONS_MOVIE=10
+ALPHA_IMGS=1000
+MOVIE_FRAMES=340
+
+while getopts s flag
+do
+    case "${flag}" in
+        s) REPETITIONS=10
+           REPETITIONS_MOVIE=3
+           ALPHA_IMGS=200
+           MOVIE_FRAMES=10
+           ;;
+    esac
+done
 
 #Build opencv_bench
 mkdir -p /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build
@@ -36,33 +27,26 @@ popd
 
 # Run benchmarks
 mkdir -p /home/artifact/artifact/out/opencv/
-BENCH=mri /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=alpha /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+BENCH=mri REPETITIONS=$REPETITIONS /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+BENCH=alpha REPETITIONS=$REPETITIONS NUM_IMGS=$ALPHA_IMGS /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
 
+CLIPS_ROOT=/home/artifact/artifact/data/clips
 mkdir -p /home/artifact/artifact/out/opencv/brighten/
-BENCH=brighten PATH1=$FOLDER0 NAME=$NAME0 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER1 NAME=$NAME1 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER2 NAME=$NAME2 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER3 NAME=$NAME3 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER4 NAME=$NAME4 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER5 NAME=$NAME5 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER6 NAME=$NAME6 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER7 NAME=$NAME7 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER8 NAME=$NAME8 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER9 NAME=$NAME9 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER10 NAME=$NAME10 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=brighten PATH1=$FOLDER11 NAME=$NAME11 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-
 mkdir -p /home/artifact/artifact/out/opencv/subtitle/
-BENCH=subtitle PATH1=$FOLDER0 NAME=$NAME0 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER1 NAME=$NAME1 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER2 NAME=$NAME2 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER3 NAME=$NAME3 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER4 NAME=$NAME4 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER5 NAME=$NAME5 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER6 NAME=$NAME6 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER7 NAME=$NAME7 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER8 NAME=$NAME8 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER9 NAME=$NAME9 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER10 NAME=$NAME10 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
-BENCH=subtitle PATH1=$FOLDER11 NAME=$NAME11 /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+for suite in ${videosuites[@]}
+do
+    unset clipsList
+    if [[ $suite == *":"* ]]
+    then
+        tmpArray=(${suite//:/ })
+        suiteName=${tmpArray[0]}
+        clipsList=${tmpArray[1]}
+        clipsList=(${clipsList//,/ })
+    fi
+
+    for clip in ${clipsList[@]}
+    do
+        BENCH=brighten REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+        BENCH=subtitle REPETITIONS=$REPETITIONS_MOVIE NUM_IMGS=$MOVIE_FRAMES PATH1=$CLIPS_ROOT/$suiteName/$clip/ NAME=$suiteName_$clip /home/artifact/artifact/taco-compression-benchmarks/opencv_bench/build/opencv-bench
+    done
+done

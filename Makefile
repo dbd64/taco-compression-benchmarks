@@ -28,24 +28,26 @@ ifeq ($(TACO_SRC_DIR),)
 TACO_SRC_DIR := "/home/artifact/artifact/taco-compression-benchmarks/taco/"
 endif
 
-
-ifeq ("$(LANKA)","ON")
-CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) numactl -C 0 -m 0 $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
-MAKE_CMD := $(MAKE) taco-bench -j48
-else
-CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
-MAKE_CMD := $(MAKE) taco-bench -j16
-endif
-
-export TACO_TENSOR_PATH = data/
-
 ifeq ("$(shell nproc)","")
 NPROC_VAL := $(shell sysctl -n hw.logicalcpu)
 else
 NPROC_VAL := $(shell nproc)
 endif
 
+ifeq ("$(LANKA)","ON")
+CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) numactl -C 0 -m 0 $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
+MAKE_CMD := $(MAKE) taco-bench -j$(NPROC_VAL)
+else
+CMD := LD_LIBRARY_PATH=$(BUILD_DIR)/lib/:$(LD_LIBRARY_PATH) $(BUILD_DIR)/taco-bench $(BENCHFLAGS)
+MAKE_CMD := $(MAKE) taco-bench -j$(NPROC_VAL)
+endif
+
+export TACO_TENSOR_PATH = data/
+
 taco-bench: taco/build/taco-bench
+	$(CMD)
+
+taco-bench-nodep:
 	$(CMD)
 
 # Separate target to run the TACO benchmarks with numpy-taco cross validation logic.

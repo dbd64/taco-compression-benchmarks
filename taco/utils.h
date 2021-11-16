@@ -99,5 +99,6 @@ std::string to_string(Kind k);
 void writeHeader(std::ostream& os, int repetitions);
 
 int getNumRepetitions(int r);
+int getIntEnvVar(std::string s, int d);
 
 #endif

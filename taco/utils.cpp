@@ -409,3 +409,8 @@ int getNumRepetitions(int r){
   auto rep = getEnvVar("REPETITIONS");
   return rep == "" ? r :  std::stoi(rep);
 }
+
+int getIntEnvVar(std::string s, int d) {
+  auto rep = getEnvVar(s);
+  return rep == "" ? d :  std::stoi(rep);
+}
