@@ -20,12 +20,14 @@ ifeq ($(LANKA),)
 LANKA := "OFF"
 endif
 
+ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+
 ifeq ($(BUILD_DIR),)
-BUILD_DIR := "/home/artifact/artifact/taco-compression-benchmarks/taco/build"
+BUILD_DIR := "$(ROOT_DIR)/taco/build"
 endif
 
 ifeq ($(TACO_SRC_DIR),)
-TACO_SRC_DIR := "/home/artifact/artifact/taco-compression-benchmarks/taco/"
+TACO_SRC_DIR := "$(ROOT_DIR)/taco/"
 endif
 
 ifeq ("$(shell nproc)","")

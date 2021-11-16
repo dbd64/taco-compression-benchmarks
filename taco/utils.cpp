@@ -177,7 +177,7 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
                           {0, (int)packed.size()}, packed);
     return {t, packed.size()};
   } else if (kind == Kind::SPARSE){
-    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
+    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, (uint8_t)sparseVal};
     for (int row=0; row<h; row++){
       for (int col=0; col<w; col++){
         if (image[row*w + col] != sparseVal){
