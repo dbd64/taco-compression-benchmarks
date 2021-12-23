@@ -66,8 +66,11 @@ ifeq ($(VALIDATION_OUTPUT_PATH),)
 	$(error VALIDATION_OUTPUT_PATH is undefined)
 endif
 
-taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/googletest
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DLANKA=$(LANKA) $(TACO_SRC_DIR) && $(MAKE_CMD)
+taco/build/taco-bench: check-and-reinit-submodules taco/benchmark/googletest
+	mkdir -p $(BUILD_DIR) && \
+	cd $(BUILD_DIR) && \
+	cmake -DLANKA=$(LANKA) $(TACO_SRC_DIR) && \
+	$(MAKE_CMD)
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
