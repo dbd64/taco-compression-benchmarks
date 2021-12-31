@@ -67,6 +67,16 @@ void push_uint16(uint8_t*& out, int& outsize, int& outcap, uint16_t value){
 }
 
 __attribute__((always_inline))
+void push_uint16(uint16_t*& out, int& outsize, int& outcap, uint16_t value){
+  if (outsize > outcap){
+    outcap = (outsize+2)*2;
+    out = (uint16_t*)realloc((void*)out, outcap);
+  }
+  out[outsize] = value;
+  outsize+=1;
+}
+
+__attribute__((always_inline))
 void set_uint16(uint8_t*& out, int& outsize, int& outcap, const int index, uint16_t value){
   uint8_t bytes[sizeof(value)];
   memcpy(bytes, &value, sizeof(value));
@@ -83,7 +93,7 @@ uint16_t load_uint16(const uint8_t* out, int& outsize, int& outcap, const int in
 }
 
 __attribute__((noinline))
-void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsize) {
+void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsize, uint16_t*& lz, int& lzsize) {
   int in_idx = 0;
   int count_idx = -1;
   int count = 0;
@@ -91,6 +101,9 @@ void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsi
   int outcap = 1048576;
   out = (uint8_t*) malloc(outcap);
   outsize = 0;
+  int lzcap = 1048576;
+  lz = (uint16_t*) malloc(lzcap);
+  lzsize = 0;
 
   while( in_idx < insize ) {
     int len = 1;
@@ -101,10 +114,11 @@ void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsi
       off = pixelRle.second;
     }
     if( len >= 4 ) {
-      push_uint16(out, outsize, outcap, 32768 | len);
-      push_uint16(out, outsize, outcap, off);
+      push_uint16(lz, lzsize, lzcap, 32768 | len);
+      push_uint16(lz, lzsize, lzcap, off);
       if (count_idx != -1){
-        set_uint16(out, outsize, outcap, count_idx, count);
+        lz[count_idx] = count;
+        // set_uint16(out, outsize, outcap, count_idx, count);
         count_idx = -1;
       }
       // hash[computeHash(out, outsize-4)] = outsize-4;
@@ -113,16 +127,17 @@ void encode_lz77_(const uint8_t* in, const int insize, uint8_t*& out, int& outsi
     } else {
       while( len ) {
         if (count_idx == -1) {
-          count_idx = outsize;
+          count_idx = lzsize;
           count = 0;
-          push_uint16(out, outsize, outcap, 0);
+          push_uint16(lz, lzsize, lzcap, 0);
         }
         
         int old_count = count; //load_uint16(out, outsize, outcap, count_idx);
         if (old_count == MAX_LIT){
-          set_uint16(out, outsize, outcap, count_idx, old_count);
-          count_idx = outsize;
-          push_uint16(out, outsize, outcap, 0);
+          lz[count_idx] = old_count;
+          // set_uint16(out, outsize, outcap, count_idx, old_count);
+          count_idx = lzsize;
+          push_uint16(lz, lzsize, lzcap, 0);
         }
 
         int new_count = len+old_count >= MAX_LIT ? MAX_LIT : len+old_count;
@@ -297,9 +312,10 @@ void movie_compress_bench_subtitle(){
     if (kind == Kind::LZ77){
       uint8_t* out = 0;
       int outsize = 0;
+      uint16_t* lz = 0;
+      int lzsize = 0;
       TOOL_BENCHMARK_REPEAT({
-          encode_lz77_(in, insize, out, outsize);
-          benchmark::DoNotOptimize(out);
+          encode_lz77_(in, insize, out, outsize, lz, lzsize);
       }, "Compute", repetitions, outputFile);
     } else  {
       uint8_t* out = 0;
