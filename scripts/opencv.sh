@@ -18,8 +18,16 @@ do
     esac
 done
 
-SCRIPT_DIR=$(dirname $(readlink -f $0))
-ARTIFACT_DIR=$SCRIPT_DIR/../..
+if [ -n $SLURM_JOB_ID ];  then
+    # check the original location through scontrol and $SLURM_JOB_ID
+    SCRIPT_DIR=$(scontrol show job $SLURM_JOBID | awk -F= '/Command=/{print $2}')
+else
+    # otherwise: started with bash. Get the real location.
+    SCRIPT_DIR=$(readlink -f $0)
+fi
+
+SCRIPT_DIR=$(dirname $SCRIPT_DIR)
+ARTIFACT_DIR=$SCRIPT_DIR/../../
 
 #Build opencv_bench
 mkdir -p $ARTIFACT_DIR/taco-compression-benchmarks/opencv_bench/build

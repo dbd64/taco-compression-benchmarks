@@ -19,7 +19,15 @@ do
     esac
 done
 
-SCRIPT_DIR=$(dirname $(readlink -f $0))
+if [ -n $SLURM_JOB_ID ];  then
+    # check the original location through scontrol and $SLURM_JOB_ID
+    SCRIPT_DIR=$(scontrol show job $SLURM_JOBID | awk -F= '/Command=/{print $2}')
+else
+    # otherwise: started with bash. Get the real location.
+    SCRIPT_DIR=$(readlink -f $0)
+fi
+
+SCRIPT_DIR=$(dirname $SCRIPT_DIR)
 ARTIFACT_DIR=$SCRIPT_DIR/../../
 
 cd $SCRIPT_DIR/..
