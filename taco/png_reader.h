@@ -119,26 +119,28 @@ void set_value(std::vector<uint8_t>& bytes, size_t pos, T val){
 }
 
 template <typename T>
-void push_back(T arg, std::vector<uint8_t>& bytes, size_t& curr_count, bool& isValues, bool check = false){
+void push_back(T arg, std::vector<uint8_t>& bytes, std::vector<uint16_t>& lz, size_t& curr_count, bool& isValues, bool check = false){
   GetBytes<T> gb;
   gb.value = arg;
 
   uint16_t mask = (uint16_t)0x7FFF;
   uint16_t count = 0;
   if (check) {
-    if (isValues && ((count = get_value<uint16_t>(bytes, curr_count)) < mask)) {
+    if (isValues && ((count = lz[curr_count]) < mask)) {
       auto temp_curr_count = curr_count;
-      set_value<uint16_t>(bytes, curr_count, count + 1);
-      push_back<T>(arg, bytes, curr_count, isValues, false);
+      lz[curr_count] = count+1;
+      push_back<T>(arg, bytes, lz, curr_count, isValues, false);
       curr_count = temp_curr_count;
     } else {
-      push_back<uint16_t>(1, bytes, curr_count, isValues, false);
-      auto temp_curr_count = size_t(bytes.empty() ? 0 : bytes.size()-2);
-      push_back<T>(arg, bytes, curr_count, isValues, false);
+      lz.push_back(1);
+      auto temp_curr_count = size_t(lz.empty() ? 0 : lz.size()-2);
+      push_back<T>(arg, bytes, lz, curr_count, isValues, false);
       curr_count = temp_curr_count;
     }
     isValues = true;
-  } else {
+  } 
+  else 
+  {
     for (unsigned long i_=0; i_<sizeof(T); i_++){
       bytes.push_back(gb.bytes[i_]);
     }
@@ -148,29 +150,35 @@ void push_back(T arg, std::vector<uint8_t>& bytes, size_t& curr_count, bool& isV
 }
 
 template <typename T>
-std::vector<uint8_t> packLZ77_bytes(std::vector<TempValue<T>> vals){
+std::pair<std::vector<uint8_t>, std::vector<uint16_t>> packLZ77_bytes(std::vector<TempValue<T>> vals){
   std::vector<uint8_t> bytes;
+  std::vector<uint16_t> lz;
   size_t curr_count = 0;
   bool isValues = false;
   const auto runMask = (uint16_t)~0x7FFF;
   for (auto& val : vals){
     std::visit(overloaded {
-            [&](T arg) { push_back(arg, bytes, curr_count, isValues, true); },
+            [&](T arg) { push_back(arg, bytes, lz, curr_count, isValues, true); },
             [&](std::pair<uint16_t, uint16_t> arg) {
-                push_back<uint16_t>(arg.second | runMask, bytes, curr_count, isValues);
-                push_back<uint16_t>(arg.first, bytes, curr_count, isValues);
+                lz.push_back(arg.second | runMask);
+                lz.push_back(arg.first);
+                isValues = false;
+                curr_count = 0;
+                // push_back<uint16_t>(arg.second | runMask, bytes, lz, curr_count, isValues);
+                // push_back<uint16_t>(arg.first, bytes, lz curr_count, isValues);
             }
     }, val);
   }
-  return bytes;
+  return {bytes, lz};
 }
 
-Index makeLZ77Index(const std::vector<int>& rowptr, int numDense = 0);
+Index makeLZ77Index(const std::vector<int>& rowptr, const std::vector<int>& lzpos,  const std::vector<uint16_t>& lz, int numDense = 0);
 Index makeLZ77ImgIndex(const std::vector<int>& rowptr);
 
 template<typename T>
 TensorBase makeLZ77(const std::string& name, const std::vector<int>& dimensions,
-                    const std::vector<int>& pos, const std::vector<uint8_t>& vals) {
+                    const std::vector<int>& pos, const std::vector<uint8_t>& vals,
+                    const std::vector<int>& lzpos, const std::vector<uint16_t>& lz) {
   // taco_uassert(dimensions.size() == 1);
   std::vector<ModeFormatPack> fs;
   for (int i = 0; i< dimensions.size()-1; i++) fs.push_back(Dense);
@@ -180,7 +188,7 @@ TensorBase makeLZ77(const std::string& name, const std::vector<int>& dimensions,
   if (dimensions.size()==2) {
     storage.setIndex(makeLZ77ImgIndex(pos));
   } else {
-    storage.setIndex(makeLZ77Index(pos));
+    storage.setIndex(makeLZ77Index(pos, lzpos, lz));
   }
   storage.setValues(makeArray(vals));
   tensor.setStorage(storage);

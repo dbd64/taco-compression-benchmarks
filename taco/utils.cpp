@@ -59,12 +59,14 @@ std::pair<Tensor<uint8_t>, size_t> to_vector_rgb(const std::vector<uint8_t> imag
    return {t, h*w*3};
  } else if (kind == Kind::LZ77){
    auto packedr = encode_lz77(image);
-   auto packed = packedr.first;
+   auto packed = packedr.first.first;
+   auto lz = packedr.first.second;
    numVals = packedr.second;
    auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
                          {h*w*3},
-                         {0, (int)packed.size()}, packed);
-   return {t, packed.size()};
+                         {0, (int)packed.size()}, packed,
+                         {0, (int)lz.size()}, lz);
+   return {t, packed.size() + 2* lz.size()};
  } else if (kind == Kind::SPARSE){
    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h*w*3}, {Sparse}, 0};
     for (int row=0; row<h; row++){
@@ -118,8 +120,9 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> imag
    numVals = packedr.second;
    auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
                          {h*w*3},
-                         {0, (int)packed.size()}, packed);
-   return {t, packed.size()};
+                         {0, (int)packed.first.size()}, packed.first,
+                         {0, (int)packed.second.size()}, packed.second);
+   return {t, packed.first.size() + 2 * packed.second.size()};
  } else if (kind == Kind::SPARSE){
    Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w,3}, {Dense,Sparse,Dense}, 0};
     for (int row=0; row<h; row++){
@@ -174,8 +177,9 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
     numVals = pr.second;
     auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
                           {h*w},
-                          {0, (int)packed.size()}, packed);
-    return {t, packed.size()};
+                          {0, (int)packed.first.size()}, packed.first,
+                          {0, (int)packed.second.size()}, packed.second);
+    return {t, packed.first.size() + 2 * packed.second.size()};
   } else if (kind == Kind::SPARSE){
     Tensor<uint8_t> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, (uint8_t)sparseVal};
     for (int row=0; row<h; row++){

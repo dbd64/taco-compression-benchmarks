@@ -86,6 +86,8 @@ Tensor<int> to_lz77(int index, int width, int height, int run_upper, int& numVal
            std::default_random_engine& gen){
     std::vector<uint8_t> bytes;
     std::vector<int> pos;
+    std::vector<uint16_t> lz;
+    std::vector<int> lzpos;
     pos.push_back(0);
     for (int i = 0; i< height; i++){
         std::vector<TempValue<int>> m;
@@ -105,12 +107,14 @@ Tensor<int> to_lz77(int index, int width, int height, int run_upper, int& numVal
             }
         }
         auto packed = packLZ77_bytes(m);
-        bytes.insert(bytes.end(), packed.begin(), packed.end());
-        pos.push_back(bytes.size());
+        bytes.insert(bytes.end(), packed.first.begin(), packed.first.end());
+        pos.push_back(bytes.size());        
+        lz.insert(lz.end(), packed.second.begin(), packed.second.end());
+        lzpos.push_back(lz.size());
     }
     numBytes = bytes.size();
     auto t = makeLZ77<int>("mtx_rand" + std::to_string(index),
-                          {height,width}, pos, bytes);
+                          {height,width}, pos, bytes, lzpos, lz);
     return t;
 }
 

@@ -50,25 +50,28 @@ uint16_t load_uint16(std::vector<uint8_t>& out, int index){
   return store.val;
 }
 
-void push_one(std::vector<uint8_t>& out, const std::vector<uint8_t>& in, std::vector<int>& hash, int& count_idx, int& in_idx){
+void push_one(std::vector<uint8_t>& out, std::vector<uint16_t>& out_lz, const std::vector<uint8_t>& in, 
+              std::vector<int>& hash, int& count_idx, int& in_idx){
   int len = 1;
-  if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
+  if (count_idx != -1 && out_lz[count_idx]==MAX_LIT){
     count_idx = -1;
   }
   if (count_idx == -1) {
-    count_idx = out.size();
-    push_uint16(out, 0);
+    count_idx = out_lz.size();
+    out_lz.push_back(0);
+    // push_uint16(out, 0);
   }
 
-  int old_cout = load_uint16(out, count_idx);
+  int old_cout = out_lz[count_idx];
 
   int new_count = len+old_cout > MAX_LIT ? MAX_LIT : len+old_cout;
   int max = new_count - old_cout;
   len -= max;
-  set_uint16(out, count_idx, new_count);
-  if (count_idx+2<out.size()) {
-    hash[computeHash(out, count_idx)] = count_idx;
-  }
+  out_lz[count_idx] = new_count;
+  // set_uint16(out_lz, count_idx, new_count);
+  // if (count_idx+2<out.size()) {
+  //   hash[computeHash(out, count_idx)] = count_idx;
+  // }
   while( max ) {
     out.push_back(in[ in_idx++ ]);
     if(out.size() > 2) {
@@ -78,13 +81,16 @@ void push_one(std::vector<uint8_t>& out, const std::vector<uint8_t>& in, std::ve
   }
 }
 
-std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in) {
+using LZ_ARRS = std::pair<std::vector<uint8_t>, std::vector<uint16_t>>;
+
+std::pair<LZ_ARRS, int> encode_lz77(const std::vector<uint8_t> in) {
   int in_idx = 0;
   int count_idx = -1;
   std::vector<int> hash(65536);
   int numRaw = 0;
 
   std::vector<uint8_t> out;
+  std::vector<uint16_t> out_lz;
 
   while( in_idx < in.size() ) {
     int len = 1;
@@ -106,36 +112,40 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in) 
       if( len > MAX_LIT ) {
         len = MAX_LIT;
       }
-      push_uint16(out, 32768 | len);
-      push_uint16(out, off);
+      out_lz.push_back(32768 | len);
+      out_lz.push_back(off);
+      // push_uint16(out_lz, 32768 | len);
+      // push_uint16(out_lz, off);
       count_idx = -1;
-      hash[computeHash(out, out.size()-4)] = out.size()-4;
-      hash[computeHash(out, out.size()-3)] = out.size()-3;
+      // hash[computeHash(out, out.size()-4)] = out.size()-4;
+      // hash[computeHash(out, out.size()-3)] = out.size()-3;
       in_idx+=len;
       if (in_idx < in.size()){
-        push_one(out,in,hash,count_idx,in_idx);
+        push_one(out,out_lz,in,hash,count_idx,in_idx);
         numRaw++;
       }
     } else 
     {
       while( len ) {
-        if (count_idx != -1 && load_uint16(out, count_idx)==MAX_LIT){
+        if (count_idx != -1 && out_lz[count_idx]==MAX_LIT){
           count_idx = -1;
         }
         if (count_idx == -1) {
-          count_idx = out.size();
-          push_uint16(out, 0);
+          count_idx = out_lz.size();
+          out_lz.push_back(0);
+          // push_uint16(out_lz, 0);
         }
         
-        int old_cout = load_uint16(out, count_idx);
+        int old_cout = out_lz[count_idx];
 
         int new_count = len+old_cout > MAX_LIT ? MAX_LIT : len+old_cout;
         int max = new_count - old_cout;
         len -= max;
-        set_uint16(out, count_idx, new_count);
-        if (count_idx+2<out.size()) {
-          hash[computeHash(out, count_idx)] = count_idx;
-        }
+        out_lz[count_idx] = new_count;
+        // set_uint16(out_lz, count_idx, new_count);
+        // if (count_idx+2<out.size()) {
+        //   hash[computeHash(out, count_idx)] = count_idx;
+        // }
         while( max ) {
           out.push_back(in[ in_idx++ ]);
           numRaw++;
@@ -147,5 +157,5 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in) 
       }
     }
   }
-  return {out, numRaw};
+  return {{out, out_lz}, numRaw};
 }

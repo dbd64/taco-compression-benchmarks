@@ -78,9 +78,10 @@ std::pair<std::vector<Tensor<uint8_t>>, size_t> read_rgb_sequence(int start, int
       auto packed = encode_lz77(image).first;
       auto t = makeLZ77<uint8_t>("lz77_" + std::to_string(start) + "_" + std::to_string(end),
                             {h*w*3},
-                            {0, (int)packed.size()}, packed);
+                            {0, (int)packed.first.size()}, packed.first,
+                            {0, (int)packed.second.size()}, packed.second);
       tensors.push_back(t);
-      total_size+=packed.size();
+      total_size+=packed.first.size() + packed.second.size()*2;
     } else if (kind == Kind::SPARSE){
       Tensor<uint8_t> t{"sparse_" + std::to_string(start) + "_" + std::to_string(end), {h,w,3}, {Dense,Sparse,Dense}, 255};
         for (int row=0; row<h; row++){

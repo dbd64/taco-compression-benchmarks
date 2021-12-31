@@ -282,13 +282,16 @@ std::pair<std::vector<uint8_t>, int> packLZ77(std::vector<TempValue<T>> vals){
 //  return {values, size};
 }
 
-Index makeLZ77Index(const std::vector<int>& rowptr, int numDense) {
+Index makeLZ77Index(const std::vector<int>& rowptr, const std::vector<int>& lzpos, 
+                    const std::vector<uint16_t>& lz, int numDense) {
   std::vector<ModeFormatPack> fs;
   for (int i = 0; i< numDense; i++) fs.push_back(Dense);
   fs.push_back(LZ77);
 
+  // std::vector<int> lzpos = {0, (int) lz.size()};
+
   return Index(Format(fs),
-               {ModeIndex({makeArray(rowptr)})});
+               {ModeIndex({makeArray(rowptr), makeArray(lz), makeArray(lzpos)})});
 }
 
 Index makeLZ77ImgIndex(const std::vector<int>& rowptr) {
@@ -339,21 +342,21 @@ std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind) {
   //if there's an error, display it
   if(error) std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
 
-  if(packLZ77_bytes(unpackLZ77_vector(compressed)) != compressed){
-    std::cout << "packLZ77_bytes(unpackLZ77_vector()) not working" << std::endl;
-  }
+  // if(packLZ77_bytes(unpackLZ77_vector(compressed)) != compressed){
+  //   std::cout << "packLZ77_bytes(unpackLZ77_vector()) not working" << std::endl;
+  // }
 
   int numVals = 0;
   auto temp = unpackLZ77_bytes(compressed, numVals);
   //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 
   auto packed_rle = packLZ77_bytes(compress(image));
-  if(unpackLZ77_bytes(packed_rle, numVals) != image){
-    std::cout << "unpackLZ77_bytes(packLZ77_bytes(compress(image))) not working" << std::endl;
-  } else {
-//    std::cout << "packed_rle bytes: " << packed_rle.size() << std::endl;
-//    compressed = packed_rle;
-  }
+//   if(unpackLZ77_bytes(packed_rle, numVals) != image){
+//     std::cout << "unpackLZ77_bytes(packLZ77_bytes(compress(image))) not working" << std::endl;
+//   } else {
+// //    std::cout << "packed_rle bytes: " << packed_rle.size() << std::endl;
+// //    compressed = packed_rle;
+//   }
 
 
   if(!(image == temp)) {
@@ -400,8 +403,9 @@ std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind) {
 //            compressed.size()};
     return {makeLZ77<uint8_t>("T" + toStr(i),
                               {(int)height*(int)width},
-                              {0, (int)packed_rle.size()}, packed_rle),
-            packed_rle.size()};
+                              {0, (int)packed_rle.first.size()}, packed_rle.first,
+                              {0, (int)packed_rle.second.size()}, packed_rle.second),
+            packed_rle.first.size() + packed_rle.second.size()*2};
 
   } else if (kind == Kind::SPARSE){
     int w = (int)width;

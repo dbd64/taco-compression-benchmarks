@@ -178,9 +178,11 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
             }
         }
         auto packed = packLZ77_bytes(m);
-        numBytes = packed.size();
+        numBytes = packed.first.size() + 2*packed.second.size();
         numVals += numValsVec;
-        return {vec, makeLZ77<int>("mtx_rand_" + std::to_string(index), {width*height}, {0, (int) packed.size()}, packed)};
+        return {vec, makeLZ77<int>("mtx_rand_" + std::to_string(index), {width*height}, 
+                                   {0, (int) packed.first.size()}, packed.first, 
+                                   {0, (int) packed.second.size()}, packed.second)};
     } else {
         std::vector<int> m;
         label = unif_vals(gen);
