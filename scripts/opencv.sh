@@ -1,4 +1,9 @@
 #!/bin/bash
+#SBATCH -N 1
+#SBATCH --mem 120000
+#SBATCH -p lanka-v3
+#SBATCH --exclude=/data/scratch/danielbd/node_exclusions.txt
+#SBATCH --exclusive
 
 videosuites=('ed:scene1,scene2,scene3,scene4' 'sita:intro_flat,flat_textures,drawn_flat,images_background' 'stock:paperclips,pink_bars,ppt,rect_bkgd')
 

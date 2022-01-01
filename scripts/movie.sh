@@ -1,4 +1,9 @@
 #!/bin/bash
+#SBATCH -N 1
+#SBATCH --mem 120000
+#SBATCH -p lanka-v3
+#SBATCH --exclude=/data/scratch/danielbd/node_exclusions.txt
+#SBATCH --exclusive
 
 REPETITIONS=10
 MOVIE_FRAMES=33
