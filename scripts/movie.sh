@@ -35,7 +35,10 @@ videosuites=('ed:scene1,scene2,scene3,scene4' 'sita:intro_flat,flat_textures,dra
 declare -a kinds=("DENSE" "SPARSE" "RLE" "LZ77")
 declare -a kinds_compressed=("RLE" "LZ77")
 
-make taco/build/taco-bench
+TMP_BUILD_DIR="$(mktemp -d  $(pwd)/build_dirs/tmp.XXXXXXXXXX)"
+
+lanka=ON
+LANKA=$lanka BUILD_DIR=$TMP_BUILD_DIR make taco/build/taco-bench
 
 for suite in ${videosuites[@]}
 do
@@ -68,19 +71,19 @@ do
             for kind in "${kinds[@]}"
             do
                 #Computation benchmarks
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=subtitle BENCH_KIND=$kind OUTPUT_PATH="$out/subtitle/$suiteName/" FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=mbrighten BENCH_KIND=$kind OUTPUT_PATH="$out/brighten/$suiteName/" FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=subtitle BENCH_KIND=$kind OUTPUT_PATH="$out/subtitle/$suiteName/" FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=mbrighten BENCH_KIND=$kind OUTPUT_PATH="$out/brighten/$suiteName/" FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
             done
 
             for kind in "${kinds_compressed[@]}"
             do
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=decompress BENCH_KIND=$kind OUTPUT_PATH="$out/decompress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=brighten_compress BENCH_KIND=$kind OUTPUT_PATH="$out/brighten_compress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=subtitle_compress BENCH_KIND=$kind OUTPUT_PATH="$out/subtitle_compress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=decompress BENCH_KIND=$kind OUTPUT_PATH="$out/decompress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=brighten_compress BENCH_KIND=$kind OUTPUT_PATH="$out/brighten_compress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=subtitle_compress BENCH_KIND=$kind OUTPUT_PATH="$out/subtitle_compress/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
             
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=lz77_rle BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=lz77_rle_brighten BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle_brighten/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
-                LANKA=OFF REPETITIONS=$REPETITIONS BENCH=lz77_rle_subtitle BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle_subtitle/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=lz77_rle BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=lz77_rle_brighten BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle_brighten/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
+                LANKA=$lanka ARTIFACT_ROOT=$ARTIFACT_DIR BUILD_DIR=$TMP_BUILD_DIR REPETITIONS=$REPETITIONS BENCH=lz77_rle_subtitle BENCH_KIND=$kind OUTPUT_PATH="$out/lz77_to_rle_subtitle/$suiteName/"  FOLDER="$CLIPS_DIR$suiteName/$clip/" IMAGE_START=$START IMAGE_END=$END CACHE_KERNELS=0 make taco-bench-nodep 
             done
 
         done
