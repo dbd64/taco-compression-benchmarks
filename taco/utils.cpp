@@ -104,6 +104,8 @@ std::pair<Tensor<uint8_t>, size_t> to_vector_rgb(const std::vector<uint8_t> imag
 //     numVals = t.getStorage().getValues().getSize();
 //     return {t, t.getStorage().getValues().getSize()*5};
 //  }
+  Tensor<uint8_t> t{"error", {w*h}, {Dense}};
+  return {t,0};
 }
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> image, int h, int w,
@@ -160,6 +162,8 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor_rgb(const std::vector<uint8_t> imag
     numVals = t.getStorage().getValues().getSize();
     return {t, t.getStorage().getValues().getSize()*5};
  }
+  Tensor<uint8_t> t{"error", {w*h}, {Dense}};
+  return {t,0};
 }
 
 std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, int h, int w, 
@@ -204,6 +208,8 @@ std::pair<Tensor<uint8_t>, size_t> to_tensor(const std::vector<uint8_t> image, i
     numVals = t.getStorage().getValues().getSize();
     return {t, t.getStorage().getValues().getSize()*5};
   }
+  Tensor<uint8_t> t{"error", {w*h}, {Dense}};
+  return {t,0};
 }
 
 std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h, int w, 
@@ -253,6 +259,8 @@ std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h
     numVals = t.getStorage().getValues().getSize();
     return {t, t.getStorage().getValues().getSize()*2};
   }
+  Tensor<int> t{"error", {w*h}, {Dense}};
+  return {t,0};
 }
 
 std::pair<Tensor<uint8_t>, size_t> read_movie_frame(std::string img_folder, std::string prefix, int index, Kind kind, int& w, int& h, int& numVals) {
@@ -420,4 +428,13 @@ int getNumRepetitions(int r){
 int getIntEnvVar(std::string s, int d) {
   auto rep = getEnvVar(s);
   return rep == "" ? d :  std::stoi(rep);
+}
+
+bool isLanka(bool d) {
+  auto rep = getEnvVar("LANKA");
+  if (d){
+    return rep != "OFF";
+  } else {
+    return rep == "ON";
+  }
 }

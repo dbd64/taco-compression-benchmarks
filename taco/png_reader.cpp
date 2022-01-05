@@ -438,7 +438,8 @@ std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind) {
     t.pack();
     return {t,t.getStorage().getValues().getSize()};
   }
-
+  Tensor<uint8_t> t{"error", {0}, {Dense}};
+  return {t,0};
 }
 
 std::pair<Tensor<uint8_t>, size_t> read_rgb_png(int i, Kind kind) {

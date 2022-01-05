@@ -23,7 +23,7 @@ T load_type(const uint8_t* out, int index){
 }
 
 template <class T>
-T store_type(uint8_t* out, int index, T value){
+void store_type(uint8_t* out, int index, T value){
   value_bytes<T> v{value};
   for (int i = 0; i < sizeof(T); i++){
     out[index + i] = v.bytes[i];
@@ -31,7 +31,7 @@ T store_type(uint8_t* out, int index, T value){
 }
 
 template <class T>
-T push_type(std::vector<uint8_t>& out, T value){
+void push_type(std::vector<uint8_t>& out, T value){
   value_bytes<T> v{value};
   for (int i = 0; i < sizeof(T); i++){
     out.push_back(v.bytes[i]);
@@ -46,7 +46,7 @@ inline int computeHash(const uint8_t* in, int in_idx){
 template <class T>
 std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int start_idx,
                               const std::vector<T>& in, const std::vector<uint8_t>& out) {
-  int len = 1;
+  int len = sizeof(T);
   int off = out_idx - start_idx;
 
   uint8_t* in_data = (uint8_t*) &in[0];

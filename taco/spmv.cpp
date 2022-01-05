@@ -306,11 +306,13 @@ void bench_spmv(){
     Tensor<int> vector, matrix;
     int numVals = 0;
     int numBytes = 0;
-    bool useLanka = true;
+    bool useLanka = isLanka();
     auto lanka_root = "/data/scratch/danielbd/spmv_data/";
     auto laptop_root = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/";
     if (data == "covtype"){
-        auto csv = load_csv((useLanka ? lanka_root : laptop_root) + std::string("covtype.data"), "covtype", kind, numVals, numBytes, false);
+        auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("covtype.data");
+        std::cout << "Reading from: " << file_path << std::endl;
+        auto csv = load_csv(file_path, "covtype", kind, numVals, numBytes, false);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "mnist"){
