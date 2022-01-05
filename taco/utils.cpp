@@ -213,14 +213,18 @@ std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h
     numVals = h*w;
     return {t, h*w};
   } else if (kind == Kind::LZ77){
-    // TODO!
-    // auto pr = encode_lz77(image);
-    // auto packed = pr.first;
-    // numVals = pr.second;
-    // auto t = makeLZ77<uint8_t>(prefix+"lz77_" + std::to_string(index),
-    //                       {h*w},
-    //                       {0, (int)packed.size()}, packed);
-    // return {t, packed.size()};
+    std::vector<int> pos;
+    std::vector<uint8_t> values;
+    for (int i =0; i< h; i++){
+      std::vector<int> row = {image.begin() + i*w, image.begin() + (i+1)*w}; 
+      auto encoded = encode_lz77(row);
+      numVals += encoded.second;
+      values.insert(values.end(), encoded.first.begin(), encoded.first.end());
+      pos.push_back((int)values.size());
+    }
+    auto t = makeLZ77<int>(prefix+"lz77_" + std::to_string(index),
+                          {h,w}, pos, values);
+    return {t, values.size() + pos.size() * sizeof(int)};
   } else if (kind == Kind::SPARSE){
     Tensor<int> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
     for (int row=0; row<h; row++){

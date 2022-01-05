@@ -7,3 +7,4 @@
 data/FROSTT/*
 venv/*
 slurm-*.out
+build_dirs/*

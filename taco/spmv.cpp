@@ -18,7 +18,7 @@
 
 using namespace taco;
 
-bool useRLEVector = true;
+bool useRLEVector = false;
 
 struct MulOp {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
@@ -306,7 +306,7 @@ void bench_spmv(){
     Tensor<int> vector, matrix;
     int numVals = 0;
     int numBytes = 0;
-    bool useLanka = false;
+    bool useLanka = true;
     auto lanka_root = "/data/scratch/danielbd/spmv_data/";
     auto laptop_root = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/";
     if (data == "covtype"){
@@ -347,7 +347,9 @@ void bench_spmv(){
     IndexStmt stmt = (out(i) = func(matrix(i,j), vector(j)));
 
     out.setAssembleWhileCompute(true);
+    std::cout << "Compiling " << name << std::endl;
     out.compile();
+    out.printComputeIR(std::cout);
     Kernel k = getKernel(stmt, out);
 
     taco_tensor_t* a0 = out.getStorage();
@@ -369,8 +371,7 @@ void bench_spmv(){
     auto count = count_bytes_vals(out, kind);
     outputFile << "," << count.first << "," << count.second << std::endl;
 
-    out.printComputeIR(std::cout);
-
+    write(getOutputPath() + data + "_" + bench_kind + ".tns", out);
 }
 
 void writeHeaderSpmvRand(std::ostream& os, int repetitions){

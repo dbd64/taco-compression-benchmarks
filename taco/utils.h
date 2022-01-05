@@ -6,6 +6,7 @@
 #include "lodepng.h"
 #include "png_reader.h"
 #include "bench.h"
+#include "lz77_compress.h"
 #include <fstream>
 #include <iterator>
 #include <variant>
@@ -67,7 +68,7 @@ inline ir::Expr ternaryOp(const ir::Expr& c, const ir::Expr& a, const ir::Expr& 
   return ir::BinOp::make(c, a_b, "(", " ? ", ")");
 }
 
-std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
+// std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<uint8_t> in);
 
 std::vector<uint8_t> raw_image_ma(std::string filename, int& w, int& h);
 std::vector<uint8_t> raw_image_grey(std::string filename, int& w, int& h);
