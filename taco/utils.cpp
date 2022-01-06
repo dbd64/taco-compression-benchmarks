@@ -380,26 +380,6 @@ void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string 
   saveTensor(validation, getValidationOutputPath() + prefix + "_" + bench_kind+ "_" + std::to_string(index) + ".png",  w, h);
 }
 
-std::pair<int,int> count_bytes_vals(Tensor<uint8_t> t, Kind kind){
-  if (kind == Kind::DENSE){
-    int num = t.getStorage().getValues().getSize();
-    return {num, num};
-  } else if (kind == Kind::LZ77){
-    int numVals = 0;
-    int numBytes = t.getStorage().getValues().getSize();
-    uint8_t* raw_bytes = (uint8_t*) t.getStorage().getValues().getData();
-    std::vector<uint8_t> raw;
-    raw.assign(raw_bytes, raw_bytes + numBytes);
-    unpackLZ77_bytes(raw, numVals, false);
-    return {numBytes, numVals};
-  } else if (kind == Kind::SPARSE){
-    return {t.getStorage().getValues().getSize()*5, t.getStorage().getValues().getSize()};
-  } else if (kind == Kind::RLE){
-    return {t.getStorage().getValues().getSize()*5, t.getStorage().getValues().getSize()};
-  }
-  return {-1,-1};
-}
-
 std::string to_string(Kind k){
   switch (k){
     case Kind::DENSE: return "DENSE";

@@ -93,7 +93,28 @@ uint32_t saveTensor_RGB(std::vector<unsigned char> valsVec, std::string path, in
 void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, bool isroi, std::string bench_kind, int index, std::string prefix);
 void saveValidation(Tensor<uint8_t> roi_t, Kind kind, int w, int h, std::string bench_kind, int index, std::string prefix, bool is_roi);
 
-std::pair<int,int> count_bytes_vals(Tensor<uint8_t> t, Kind kind);
+template <class T>
+std::pair<int,int> count_bytes_vals(Tensor<T> t, Kind kind){
+  if (kind == Kind::DENSE){
+    int num = t.getStorage().getValues().getSize();
+    return {num*sizeof(T), num};
+  } else if (kind == Kind::LZ77){
+    int numVals = 0;
+    int numBytes = t.getStorage().getValues().getSize();
+    uint8_t* raw_bytes = (uint8_t*) t.getStorage().getValues().getData();
+    std::vector<uint8_t> raw;
+    raw.assign(raw_bytes, raw_bytes + numBytes);
+    unpackLZ77_bytes(raw, numVals, false);
+    return {numBytes, numVals};
+  } else if (kind == Kind::SPARSE){
+    int numVals = t.getStorage().getValues().getSize();
+    return {4* numVals + sizeof(T)*numVals, numVals};
+  } else if (kind == Kind::RLE){
+    int numVals = t.getStorage().getValues().getSize();
+    return {4* numVals + sizeof(T)*numVals, numVals};
+  }
+  return {-1,-1};
+}
 
 std::string to_string(Kind k);
 
@@ -122,7 +143,7 @@ std::pair<Tensor<T>, size_t> to_tensor_type(const std::vector<T> image, int h, i
     }
     auto t = makeLZ77<T>(prefix+"lz77_" + std::to_string(index),
                           {h,w}, pos, values);
-    return {t, values.size() + pos.size() * sizeof(T)};
+    return {t, values.size()*sizeof(T) + pos.size() * 4};
   } else if (kind == Kind::SPARSE){
     Tensor<T> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
     for (int row=0; row<h; row++){

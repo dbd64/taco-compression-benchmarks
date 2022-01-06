@@ -119,8 +119,8 @@ Tensor<T> rand_vec(int index, int sz, int& numVals){
 }
 
 template <class T>
-std::pair<Tensor<T>, Tensor<T>> load_csv(std::string filename, std::string name, Kind kind, int& numVals, int& numBytes, bool first, int offset = 1, bool transpose = true){
-    rapidcsv::Document doc(filename, rapidcsv::LabelParams(-1, -1));
+std::pair<Tensor<T>, Tensor<T>> load_csv(std::string filename, std::string name, Kind kind, int& numVals, int& numBytes, bool first, bool has_header = false, int offset = 1, bool transpose = true){
+    rapidcsv::Document doc(filename, rapidcsv::LabelParams(has_header ? 0 : -1, -1));
 
     int col_lower = 0;
     int col_upper = doc.GetColumnCount();
@@ -194,7 +194,7 @@ void bench_spmv(){
     } else if (bench_kind == "SPARSE"){
         kind = Kind::SPARSE;
         f = Format{Dense,Sparse};
-        func = Mul_universe;
+        func = Mul_intersect;
     } else if (bench_kind == "RLE"){
         kind = Kind::RLE;
         f = Format{Dense,RLE};
@@ -239,25 +239,25 @@ void bench_spmv(){
     } else if (data == "census"){
         auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("USCensus1990.data.csv");
         std::cout << "Reading from: " << file_path << std::endl;
-        auto csv = load_csv<T>(file_path, "census", kind, numVals, numBytes, true);
+        auto csv = load_csv<T>(file_path, "census", kind, numVals, numBytes, true, true);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "spgemm"){
         auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("sgemm_product.csv");
         std::cout << "Reading from: " << file_path << std::endl;
-        auto csv = load_csv<T>(file_path, "spgemm", kind, numVals, numBytes, false, 4);
+        auto csv = load_csv<T>(file_path, "spgemm", kind, numVals, numBytes, false, true, 4);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "poker"){
         auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("poker-hand-training-true.csv");
         std::cout << "Reading from: " << file_path << std::endl;
-        auto csv = load_csv<T>(file_path, "poker", kind, numVals, numBytes, false, 0);
+        auto csv = load_csv<T>(file_path, "poker", kind, numVals, numBytes, false, false, 0);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "kddcup"){
-        auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("kddcup.csv");
+        auto file_path = (useLanka ? lanka_root : laptop_root) + std::string("kddcup_processed.csv");
         std::cout << "Reading from: " << file_path << std::endl;
-        auto csv = load_csv<T>(file_path, "kddcup", kind, numVals, numBytes, false, 0);
+        auto csv = load_csv<T>(file_path, "kddcup", kind, numVals, numBytes, false, false, 0);
         vector = csv.first;
         matrix = csv.second;
     }
@@ -275,8 +275,15 @@ void bench_spmv(){
     std::cout << vector.getStorage().getDimensions() << std::endl;
     std::cout << matrix.getStorage().getDimensions() << std::endl;
 
+    Tensor<T> copy_out("copy_out", matrix.getStorage().getDimensions(), {Dense,Dense});
+    copy_out(i,j) = copy(matrix(i,j));
+    copy_out.setAssembleWhileCompute(true);
+    copy_out.compile();
+    copy_out.compute();
+    write(getOutputPath() + "rawmtx/" + data + "_" + bench_kind + "_rawmtx.tns", copy_out);
+
     Tensor<T> out("out", {matrix.getStorage().getDimensions()[1]}, {Dense});
-    IndexStmt stmt = (out(j) = func(matrix(i,j), vector(i)));
+    IndexStmt stmt = (out(i) = func(matrix(j,i), vector(j)));
 
     out.setAssembleWhileCompute(true);
     std::cout << "Compiling " << name << std::endl;
@@ -300,8 +307,8 @@ void bench_spmv(){
     }
 
     out.compute();
-    auto count = count_bytes_vals(out, kind);
-    outputFile << "," << count.first << "," << count.second << std::endl;
+    // auto count = count_bytes_vals(out, kind);
+    outputFile << "," << out.getStorage().getDimensions()[0]*4 << "," << out.getStorage().getDimensions()[0] << std::endl;
 
     write(getOutputPath() + data + "_" + bench_kind + ".tns", out);
 }

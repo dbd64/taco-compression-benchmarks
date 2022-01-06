@@ -214,7 +214,7 @@ void bench_spmv_rand(){
     } else if (bench_kind == "RLE"){
         kind = Kind::RLE;
         f = Format{Dense,RLE};
-        func = Mul_union;
+        func = Mul_universe;
     } else if (bench_kind == "LZ77"){
         kind = Kind::LZ77;
         f = Format{LZ77};
