@@ -245,7 +245,7 @@ std::pair<Tensor<int>, size_t> to_tensor_int(const std::vector<int> image, int h
     return {t, t.getStorage().getValues().getSize()*2};
   } else if (kind == Kind::RLE){
     Tensor<int> t{prefix+"rle_" + std::to_string(index), {h,w}, {Dense,RLE}, 0};
-    uint8_t curr = image[0];
+    int curr = image[0];
     t(0,0) = curr;
     for (int row=0; row<h; row++){
       for (int col=0; col<w; col++){

@@ -114,27 +114,42 @@ Tensor<int> to_lz77(int index, int width, int height, int run_upper, int& numVal
     return t;
 }
 
+Tensor<int> rand_vec(int index, int sz, int& numVals){
+    std::default_random_engine gen(index);
+
+    std::uniform_int_distribution<int> unif_vals_vec(1, 255);
+    std::vector<int> v;
+    int numValsVec = 1;
+    for (int i=0; i<sz; i++){
+        int label = unif_vals_vec(gen);
+        numVals++;
+        v.push_back(label);
+    }
+    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
+    return vec;
+}
+
 std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, int run_upper, Kind kind, int& numVals, int& numBytes){
     std::default_random_engine gen(index);
     std::uniform_int_distribution<int> unif_vals(0, 255);
     std::uniform_int_distribution<int> unif_runs(1, run_upper);
 
-{
-    std::vector<int> v;
-    int label = unif_vals(gen);
-    int run_len = unif_runs(gen);
-    int numValsVec = 1;
-    for (int i=0; i<width; i++){
-        if (run_len == 0 ){
-            label = unif_vals(gen);
-            run_len = unif_runs(gen);
-            numValsVec++;
+    {
+        std::vector<int> v;
+        int label = unif_vals(gen);
+        int run_len = unif_runs(gen);
+        int numValsVec = 1;
+        for (int i=0; i<width; i++){
+            if (run_len == 0 ){
+                label = unif_vals(gen);
+                run_len = unif_runs(gen);
+                numValsVec++;
+            }
+            v.push_back(label);
+            run_len--;
         }
-        v.push_back(label);
-        run_len--;
+        Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
     }
-    Tensor<int> vec = useRLEVector ? makeRLEVector("vec_rand", v, v.size()) : makeDenseVector("vec_rand", v.size(), v);
-}
 
     // Load matrix
     Tensor<int> mat;
@@ -342,11 +357,14 @@ void bench_spmv(){
 
     writeHeader(outputFile, repetitions);
 
+    int temp = 0;
+    vector = rand_vec(0, matrix.getStorage().getDimensions()[0], temp);
+
     std::cout << vector.getStorage().getDimensions() << std::endl;
     std::cout << matrix.getStorage().getDimensions() << std::endl;
 
-    Tensor<uint8_t> out("out", {matrix.getStorage().getDimensions()[0]}, {Dense});
-    IndexStmt stmt = (out(i) = func(matrix(i,j), vector(j)));
+    Tensor<int> out("out", {matrix.getStorage().getDimensions()[1]}, {Dense});
+    IndexStmt stmt = (out(j) = func(matrix(i,j), vector(i)));
 
     out.setAssembleWhileCompute(true);
     std::cout << "Compiling " << name << std::endl;
