@@ -103,4 +103,56 @@ int getNumRepetitions(int r);
 int getIntEnvVar(std::string s, int d);
 bool isLanka(bool d = true);
 
+template <class T>
+std::pair<Tensor<T>, size_t> to_tensor_type(const std::vector<T> image, int h, int w, 
+                                             int index, std::string prefix, Kind kind, int& numVals, T sparseVal = 0){
+  if (kind == Kind::DENSE){
+    auto t = makeDense_2(prefix+"dense_" + std::to_string(index), {h,w}, image);
+    numVals = h*w;
+    return {t, h*w*sizeof(T)};
+  } else if (kind == Kind::LZ77){
+    std::vector<int> pos;
+    std::vector<uint8_t> values;
+    for (int i =0; i< h; i++){
+      std::vector<T> row = {image.begin() + i*w, image.begin() + (i+1)*w}; 
+      auto encoded = encode_lz77<T>(row);
+      numVals += encoded.second;
+      values.insert(values.end(), encoded.first.begin(), encoded.first.end());
+      pos.push_back((int)values.size());
+    }
+    auto t = makeLZ77<T>(prefix+"lz77_" + std::to_string(index),
+                          {h,w}, pos, values);
+    return {t, values.size() + pos.size() * sizeof(T)};
+  } else if (kind == Kind::SPARSE){
+    Tensor<T> t{prefix+"sparse_" + std::to_string(index), {h,w}, {Dense,Sparse}, sparseVal};
+    for (int row=0; row<h; row++){
+      for (int col=0; col<w; col++){
+        if (image[row*w + col] != sparseVal){
+            t(row,col) = image[row*w + col];
+        }
+      }
+    }
+    t.pack();
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*sizeof(T)};
+  } else if (kind == Kind::RLE){
+    Tensor<T> t{prefix+"rle_" + std::to_string(index), {h,w}, {Dense,RLE}, 0};
+    T curr = image[0];
+    t(0,0) = curr;
+    for (int row=0; row<h; row++){
+      for (int col=0; col<w; col++){
+        if (image[row*w + col] != curr){
+          curr = image[row*w + col];
+          t(row,col) = curr;
+        }
+      }
+    }
+    t.pack();
+    numVals = t.getStorage().getValues().getSize();
+    return {t, t.getStorage().getValues().getSize()*sizeof(T)};
+  }
+  Tensor<T> t{"error", {w*h}, {Dense}};
+  return {t,0};
+}
+
 #endif

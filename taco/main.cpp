@@ -1,4 +1,5 @@
 #include "bench.h"
+#include "spmv.h"
 
 void sketch_alpha_blending();
 void brighten_bench();
@@ -7,7 +8,6 @@ void movie_alpha_bench();
 void movie_mask_bench();
 void movie_subtitle_bench();
 void movie_brighten_bench();
-void bench_spmv();
 void movie_decompress_bench();
 void movie_compress_bench_brighten();
 void movie_compress_bench_subtitle();
@@ -40,7 +40,9 @@ int main(){
     } else if (bench == "mbrighten"){
         movie_brighten_bench();
     } else if (bench == "spmv"){
-        bench_spmv();
+        bench_spmv<int>();
+    } else if (bench == "spmv_float"){
+        bench_spmv<float>();
     } else if (bench == "decompress"){
         movie_decompress_bench();
     } else if (bench == "brighten_compress"){

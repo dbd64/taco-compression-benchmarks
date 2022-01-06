@@ -76,7 +76,16 @@ enum class Kind {
 Func getCopyFunc();
 Func getPlusFunc();
 Func getPlusRleFunc();
-Kernel getKernel(IndexStmt indexStmt, Tensor<uint8_t> t);
+
+template <class T>
+Kernel getKernel(IndexStmt indexStmt, Tensor<T> t){
+  std::shared_ptr<ir::Module> module = t.getModule();
+  void* compute  = module->getFuncPtr("compute");
+  void* assemble = module->getFuncPtr("assemble");
+  void* evaluate = module->getFuncPtr("evaluate");
+  Kernel k(indexStmt, module, evaluate, assemble, compute);
+  return k;
+}
 
 std::pair<Tensor<uint8_t>, size_t> read_png(int i, Kind kind);
 std::pair<Tensor<uint8_t>, size_t> read_rgb_png(int i, Kind kind);

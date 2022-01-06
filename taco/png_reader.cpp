@@ -620,15 +620,6 @@ std::ostream& operator << (std::ostream& os, const Kind& obj)
   return os;
 }
 
-Kernel getKernel(IndexStmt indexStmt, Tensor<uint8_t> t){
-  shared_ptr<ir::Module> module = t.getModule();
-  void* compute  = module->getFuncPtr("compute");
-  void* assemble = module->getFuncPtr("assemble");
-  void* evaluate = module->getFuncPtr("evaluate");
-  Kernel k(indexStmt, module, evaluate, assemble, compute);
-  return k;
-}
-
 static void bench_sketch_alpha(benchmark::State& state, Kind kind) {
   int index = state.range(0);
 
