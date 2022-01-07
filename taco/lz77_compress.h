@@ -53,10 +53,10 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
   int in_idx = in_idx_ * sizeof(T);
   size_t in_size = in.size() * sizeof(T);
 
-  if( off > 0 && off < 65536 && start_idx >= 0 && start_idx < out.size() &&
+  if( off > 0 && off < 65536 && start_idx >= 0 && start_idx < out.size() && start_idx + sizeof(T) < out.size() &&
       load_type<T>(&out[0], start_idx) == load_type<T>(in_data, in_idx) ) {
-    while( in_idx + len < in_size &&
-           load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len) ) {
+    while( in_idx + len/sizeof(T) < in_size && start_idx + (len % off) + sizeof(T) < out.size() &&
+           load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
       len+=sizeof(T);
     }
   }

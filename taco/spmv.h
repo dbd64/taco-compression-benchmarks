@@ -221,7 +221,7 @@ void bench_spmv(){
         matrix = csv.second;
     } else if (data == "mnist"){
         transpose = false;
-        auto csv = load_csv<T>((useLanka ? lanka_root : laptop_root) + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true, false, 1, transpose);
+        auto csv = load_csv<T>((useLanka ? lanka_root : laptop_root) + std::string("mnist_train.csv"), "mnist", kind, numVals, numBytes, true, false, 1, transpose);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "sketches"){
