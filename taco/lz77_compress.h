@@ -3,9 +3,15 @@
 // 0 XXXXXXX XXXXXXXX     -> read X number of bytes
 // 1 XXXXXXX XXXXXXXX Y Y -> X is the run length, Y is the distance
 
+constexpr bool dist1Byte = true;
+
 #define MAX_LIT  32767
 #define MAX_RUN  32767
-#define MAX_DIST 65535
+// #define MAX_DIST 65535
+#define MAX_DIST 255
+
+using dist_type = typename std::conditional<dist1Byte, uint8_t, uint16_t>::type;
+
 
 template <class T>
 union value_bytes {
@@ -38,7 +44,7 @@ void push_type(std::vector<uint8_t>& out, T value){
   }
 }
 
-inline int computeHash(const uint8_t* in, int in_idx){
+inline uint8_t computeHash(const uint8_t* in, int in_idx){
   return ( ( in[ in_idx ] & 0xFF ) << 8 ) |
          ( ( in[ in_idx + 1 ] & 0xFF ) ^ ( in[ in_idx + 2 ] & 0xFF ) );
 }
@@ -53,7 +59,7 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
   int in_idx = in_idx_ * sizeof(T);
   size_t in_size = in.size() * sizeof(T);
 
-  if( off > 0 && off < 65536 && start_idx >= 0 && start_idx < out.size() && start_idx + sizeof(T) <= out.size() &&
+  if( off > 0 && off < MAX_DIST && start_idx >= 0 && start_idx < out.size() && start_idx + sizeof(T) <= out.size() &&
       load_type<T>(&out[0], start_idx) == load_type<T>(in_data, in_idx) ) {
         if (off % sizeof(T) == 0 ){
           while( in_idx + len/sizeof(T) < in_size &&
@@ -63,7 +69,6 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
         } else {
           while( in_idx + len/sizeof(T) < in_size && start_idx + (len % off) + sizeof(T) < out.size() &&
                 load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len) ) {
-
             len+=sizeof(T);
           }
         }
@@ -104,7 +109,7 @@ template <class T>
 std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
   int in_idx = 0;
   int count_idx = -1;
-  std::vector<int> hash(65536);
+  std::vector<int> hash(MAX_DIST);
   int numRaw = 0;
 
   std::vector<uint8_t> out;
@@ -131,7 +136,7 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
         len = MAX_LIT;
       }
       push_type<uint16_t>(out, 32768 | len);
-      push_type<uint16_t>(out, off);
+      push_type<dist_type>(out, off);
       count_idx = -1;
       hash[computeHash(&out[0], out.size()-4)] = out.size()-4;
       hash[computeHash(&out[0], out.size()-3)] = out.size()-3;
