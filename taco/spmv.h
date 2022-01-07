@@ -70,8 +70,8 @@ inline Func Mul_intersect("mul_intersect", MulOp(), intersectionAlgebra());
 inline Func Mul_union("mul_union", MulOp(), unionAlgebra());
 inline Func Mul_universe("mul_universe", MulOp(), universeAlgebra());
 
-std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes);
-std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::string name, Kind kind, int& numVals, int& numBytes);
+std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes, bool transpose = true);
+std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::string name, Kind kind, int& numVals, int& numBytes, bool transpose = true);
 
 template <class T>
 Tensor<T> makeRLEVector(std::string name, std::vector<T> v, int size){
@@ -154,7 +154,7 @@ std::pair<Tensor<T>, Tensor<T>> load_csv(std::string filename, std::string name,
         int numRows = doc.GetRowCount();
         std::vector<T> matrix;
         // for (int i=0; i< num)
-        for (int i = col_lower; i < col_upper; i++){
+        for (int i = 0; i < numRows; i++){
             auto column = doc.GetRow<T>(i);
             matrix.insert(matrix.end(), column.begin() + col_lower, column.end() - (doc.GetColumnCount() - col_upper));
         }
@@ -210,6 +210,7 @@ void bench_spmv(){
     int numVals = 0;
     int numBytes = 0;
     bool useLanka = isLanka();
+    bool transpose = true;
     auto lanka_root = "/data/scratch/danielbd/spmv_data/";
     auto laptop_root = "/Users/danieldonenfeld/Developer/taco-compression-benchmarks/data/spmv/";
     if (data == "covtype"){
@@ -219,10 +220,12 @@ void bench_spmv(){
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "mnist"){
-        auto csv = load_csv<T>((useLanka ? lanka_root : laptop_root) + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true);
+        transpose = false;
+        auto csv = load_csv<T>((useLanka ? lanka_root : laptop_root) + std::string("mnist_train.csv"), "covtype", kind, numVals, numBytes, true, false, 1, transpose);
         vector = csv.first;
         matrix = csv.second;
     } else if (data == "sketches"){
+        transpose = false;
         auto lanka_folder = "/data/scratch/danielbd/python_png_analysis/sketches/nodelta/";
         auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/sketches/nodelta/";
         auto csv = load_sketches_grey((useLanka ? lanka_folder : laptop_folder), 1000, "sketches", kind, numVals, numBytes);
@@ -230,6 +233,7 @@ void bench_spmv(){
         matrix = csv.second;
         if (kind == Kind::SPARSE) func = Mul_universe;
     } else if (data == "ilsvrc"){
+        transpose = false;
         auto lanka_folder = lanka_root + std::string("cropped_grey/");
         auto laptop_folder = "/Users/danieldonenfeld/Developer/png_analysis/ILSVRC/Data/DET/cropped_grey/";
         auto csv = load_imgnet_grey((useLanka ? lanka_folder : laptop_folder), "ILSVRC", kind, numVals, numBytes);
@@ -270,20 +274,25 @@ void bench_spmv(){
     writeHeader(outputFile, repetitions);
 
     int temp = 0;
-    vector = rand_vec<T>(0, matrix.getStorage().getDimensions()[0], temp);
+    vector = rand_vec<T>(0, matrix.getStorage().getDimensions()[transpose ? 0 : 1], temp);
 
-    std::cout << vector.getStorage().getDimensions() << std::endl;
     std::cout << matrix.getStorage().getDimensions() << std::endl;
+    std::cout << vector.getStorage().getDimensions() << std::endl;
 
-    Tensor<T> copy_out("copy_out", matrix.getStorage().getDimensions(), {Dense,Dense});
-    copy_out(i,j) = copy(matrix(i,j));
-    copy_out.setAssembleWhileCompute(true);
-    copy_out.compile();
-    copy_out.compute();
-    write(getOutputPath() + "rawmtx/" + data + "_" + bench_kind + "_rawmtx.tns", copy_out);
+    // Tensor<T> copy_out("copy_out", matrix.getStorage().getDimensions(), {Dense,Dense});
+    // copy_out(i,j) = copy(matrix(i,j));
+    // copy_out.setAssembleWhileCompute(true);
+    // copy_out.compile();
+    // copy_out.compute();
+    // write(getOutputPath() + "rawmtx/" + data + "_" + bench_kind + "_rawmtx.tns", copy_out);
 
-    Tensor<T> out("out", {matrix.getStorage().getDimensions()[1]}, {Dense});
-    IndexStmt stmt = (out(i) = func(matrix(j,i), vector(j)));
+    Tensor<T> out("out", {matrix.getStorage().getDimensions()[transpose ? 1 : 0]}, {Dense});
+    IndexStmt stmt;
+    if (transpose){
+        stmt = (out(i) = func(matrix(j,i), vector(j)));
+    } else {
+        stmt = (out(i) = func(matrix(i,j), vector(j)));
+    }
 
     out.setAssembleWhileCompute(true);
     std::cout << "Compiling " << name << std::endl;
@@ -307,10 +316,9 @@ void bench_spmv(){
     }
 
     out.compute();
-    // auto count = count_bytes_vals(out, kind);
     outputFile << "," << out.getStorage().getDimensions()[0]*4 << "," << out.getStorage().getDimensions()[0] << std::endl;
 
-    write(getOutputPath() + data + "_" + bench_kind + ".tns", out);
+    write(getOutputPath() + "rawmtx/" + data + "_" + bench_kind + ".tns", out);
 }
 
 

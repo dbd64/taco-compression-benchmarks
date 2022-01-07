@@ -119,7 +119,7 @@ std::pair<Tensor<int>, Tensor<int>> gen_rand(int index, int width, int height, i
     return {vec, mat};
 }
 
-std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes){
+std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int numImgs, std::string name, Kind kind, int& numVals, int& numBytes, bool transpose){
     std::vector<int> v;
     int label = 1;
     for (int i=1; i<=numImgs; i++){
@@ -140,12 +140,12 @@ std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int num
         m.insert(m.end(), img.begin(), img.end());
     }
 
-    auto mat = to_tensor_int(m, width*height, numImgs, 0, "mtx_" + name, kind, numVals, 255);
+    auto mat = to_tensor_int(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
     numBytes = mat.second;
     return {vec, mat.first};
 }
 
-std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::string name, Kind kind, int& numVals, int& numBytes){
+std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::string name, Kind kind, int& numVals, int& numBytes, bool transpose){
     int numImgs = 5484;
     std::vector<int> v;
     int label = 1;
@@ -167,7 +167,7 @@ std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::stri
         m.insert(m.end(), img.begin(), img.end());
     }
 
-    auto mat = to_tensor_int(m, width*height, numImgs, 0, "mtx_" + name, kind, numVals, 255);
+    auto mat = to_tensor_int(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
     numBytes = mat.second;
     return {vec, mat.first};
 }
