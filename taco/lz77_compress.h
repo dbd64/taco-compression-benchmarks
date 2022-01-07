@@ -53,12 +53,19 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
   int in_idx = in_idx_ * sizeof(T);
   size_t in_size = in.size() * sizeof(T);
 
-  if( off > 0 && off < 65536 && start_idx >= 0 && start_idx < out.size() && start_idx + sizeof(T) < out.size() &&
+  if( off > 0 && off < 65536 && start_idx >= 0 && start_idx < out.size() && start_idx + sizeof(T) <= out.size() &&
       load_type<T>(&out[0], start_idx) == load_type<T>(in_data, in_idx) ) {
-    while( in_idx + len/sizeof(T) < in_size && start_idx + (len % off) + sizeof(T) < out.size() &&
-           load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
-      len+=sizeof(T);
-    }
+        if (off % sizeof(T) == 0 ){
+          while( in_idx + len/sizeof(T) < in_size &&
+                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
+            len+=sizeof(T);
+          }
+        } else {
+          while( in_idx + len/sizeof(T) < in_size && start_idx + (len % off) + sizeof(T) < out.size() &&
+                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
+            len+=sizeof(T);
+          }
+        }
   }
   return {len/sizeof(T), off};
 }
@@ -102,12 +109,13 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
   std::vector<uint8_t> out;
 
   while( in_idx < in.size() ) {
+    // std::cout << "in_idx " << in_idx << std::endl;
     int len = 1;
     int off = 0;
     if( in_idx + 2 < in.size() ) {
       auto rle = find_match<T>(in_idx, out.size(), out.size() - sizeof(T), in, out);
       auto pixelRle = find_match<T>(in_idx, out.size(), out.size() - 3*sizeof(T), in, out);
-      auto hashCheck = find_match<T>(in_idx, out.size(), hash[ computeHash((uint8_t*)&in[0], in_idx) ], in, out);
+      auto hashCheck = find_match<T>(in_idx, out.size(), hash[ computeHash((uint8_t*)&in[0], in_idx*sizeof(T)) ], in, out);
       len = std::max({rle.first, pixelRle.first, hashCheck.first});
       if (rle.first == len){
         off = rle.second;
