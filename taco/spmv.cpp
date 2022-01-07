@@ -140,7 +140,7 @@ std::pair<Tensor<int>, Tensor<int>> load_sketches_grey(std::string path, int num
         m.insert(m.end(), img.begin(), img.end());
     }
 
-    auto mat = to_tensor_int(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
+    auto mat = to_tensor_type<int>(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
     numBytes = mat.second;
     return {vec, mat.first};
 }
@@ -167,7 +167,7 @@ std::pair<Tensor<int>, Tensor<int>> load_imgnet_grey(std::string path, std::stri
         m.insert(m.end(), img.begin(), img.end());
     }
 
-    auto mat = to_tensor_int(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
+    auto mat = to_tensor_type<int>(m, numImgs, width*height, 0, "mtx_" + name, kind, numVals, 255);
     numBytes = mat.second;
     return {vec, mat.first};
 }

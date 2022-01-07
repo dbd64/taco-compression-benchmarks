@@ -71,4 +71,5 @@ do
     rm $out/DENSE_spmv_COLD_*_$source.csv
 done
 
+python3 $SCRIPT_DIR/merge_csv.py $out/ $out/spmv_all.csv "" "" True
 rm -r $TMP_BUILD_DIR

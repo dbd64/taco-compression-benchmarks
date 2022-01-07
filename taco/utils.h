@@ -135,12 +135,19 @@ std::pair<Tensor<T>, size_t> to_tensor_type(const std::vector<T> image, int h, i
     std::vector<int> pos = {0};
     std::vector<uint8_t> values;
     for (int i =0; i< h; i++){
+      std::cout << "Row " << i << std::endl;
       std::vector<T> row = {image.begin() + i*w, image.begin() + (i+1)*w}; 
       auto encoded = encode_lz77<T>(row);
       numVals += encoded.second;
       values.insert(values.end(), encoded.first.begin(), encoded.first.end());
       pos.push_back((int)values.size());
     }
+    std::cout << "RAW VALUES (" << values.size() << "): ";
+    for (size_t i=0; i < std::min((size_t)100,values.size()); i++){
+      std::cout << (int)values[i] << " ";
+    }
+    std::cout << std::endl;
+
     auto t = makeLZ77<T>(prefix+"lz77_" + std::to_string(index),
                           {h,w}, pos, values);
     return {t, values.size()*sizeof(T) + pos.size() * 4};

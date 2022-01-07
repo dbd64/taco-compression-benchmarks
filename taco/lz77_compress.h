@@ -57,12 +57,13 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
       load_type<T>(&out[0], start_idx) == load_type<T>(in_data, in_idx) ) {
         if (off % sizeof(T) == 0 ){
           while( in_idx + len/sizeof(T) < in_size &&
-                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
+                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len) ) {
             len+=sizeof(T);
           }
         } else {
           while( in_idx + len/sizeof(T) < in_size && start_idx + (len % off) + sizeof(T) < out.size() &&
-                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len/sizeof(T)) ) {
+                load_type<T>(&out[0], start_idx + (len % off)) == load_type<T>(in_data, in_idx + len) ) {
+
             len+=sizeof(T);
           }
         }
