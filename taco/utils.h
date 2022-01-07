@@ -132,7 +132,7 @@ std::pair<Tensor<T>, size_t> to_tensor_type(const std::vector<T> image, int h, i
     numVals = h*w;
     return {t, h*w*sizeof(T)};
   } else if (kind == Kind::LZ77){
-    std::vector<int> pos;
+    std::vector<int> pos = {0};
     std::vector<uint8_t> values;
     for (int i =0; i< h; i++){
       std::vector<T> row = {image.begin() + i*w, image.begin() + (i+1)*w}; 
