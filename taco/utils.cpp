@@ -418,3 +418,22 @@ bool isLanka(bool d) {
     return rep == "ON";
   }
 }
+
+bool useSourceFiles(bool d) {
+  auto rep = getEnvVar("USE_SOURCE");
+  if (d){
+    return rep != "OFF";
+  } else {
+    return rep == "ON";
+  }
+}
+
+Index makeRLEPIndex(const std::vector<int>& rowptr) {
+  return Index({RLEP}, {ModeIndex({makeArray(rowptr)})});
+}
+
+Index makeRLEPImgIndex(const std::vector<int>& rowptr) {
+  return Index({Dense, RLEP},
+               {ModeIndex({makeArray({(int)rowptr.size()})}),
+                ModeIndex({makeArray(rowptr)})});
+}

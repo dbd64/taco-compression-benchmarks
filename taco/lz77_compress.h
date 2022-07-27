@@ -72,9 +72,10 @@ std::pair<int,int> find_match(const int in_idx_, const int out_idx, const int st
 }
 
 template <class T>
-void push_one(std::vector<uint8_t>& out, const std::vector<T>& in, std::vector<int>& hash, int& count_idx, int& in_idx){
+void push_one(std::vector<uint8_t>& out, const std::vector<T>& in, std::vector<int>& hash, int& count_idx, int& in_idx, std::vector<int64_t>& runs, std::vector<int64_t>& lits){
   int len = 1;
   if (count_idx != -1 && load_type<uint16_t>(&out[0], count_idx)==MAX_LIT){
+    lits[MAX_LIT]++;
     count_idx = -1;
   }
   if (count_idx == -1) {
@@ -101,7 +102,7 @@ void push_one(std::vector<uint8_t>& out, const std::vector<T>& in, std::vector<i
 }
 
 template <class T>
-std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in, std::vector<int64_t>& runs, std::vector<int64_t>& lits) {
   int in_idx = 0;
   int count_idx = -1;
   std::vector<int> hash(65536);
@@ -130,6 +131,8 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
       if( len > MAX_LIT ) {
         len = MAX_LIT;
       }
+      runs[len]++;
+      lits[load_type<uint16_t>(&out[0], count_idx)]++;
       push_type<uint16_t>(out, 32768 | len);
       push_type<uint16_t>(out, off);
       count_idx = -1;
@@ -137,13 +140,14 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
       hash[computeHash(&out[0], out.size()-3)] = out.size()-3;
       in_idx+=len;
       if (in_idx < in.size()){
-        push_one(out,in,hash,count_idx,in_idx);
+        push_one(out,in,hash,count_idx,in_idx, runs, lits);
         numRaw++;
       }
     } else 
     {
       while( len ) {
         if (count_idx != -1 && load_type<uint16_t>(&out[0], count_idx)==MAX_LIT){
+          lits[MAX_LIT]++;
           count_idx = -1;
         }
         if (count_idx == -1) {
@@ -172,4 +176,12 @@ std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
     }
   }
   return {out, numRaw};
+}
+
+template <class T>
+std::pair<std::vector<uint8_t>, int> encode_lz77(const std::vector<T> in) {
+  int64_t bound = std::pow(2.0, 15);
+  std::vector<int64_t> runs(bound, 0);
+  std::vector<int64_t> lits(bound, 0);
+  return encode_lz77(in, runs, lits);
 }

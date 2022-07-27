@@ -570,9 +570,15 @@ namespace rapidcsv
         {
           if (columnIdx < static_cast<ssize_t>(itRow->size()))
           {
+            try {
             T val;
             converter.ToVal(itRow->at(columnIdx), val);
             column.push_back(val);
+            } catch (...){
+              std::cout << "Row: " << (std::distance(mData.begin(), itRow) -
+                             (mLabelParams.mColumnNameIdx + 1)) << ", Col: " << columnIdx << std::endl;
+              throw;
+            }
           }
           else
           {

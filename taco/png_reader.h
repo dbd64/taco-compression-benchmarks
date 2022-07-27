@@ -70,7 +70,8 @@ enum class Kind {
       DENSE,
       SPARSE,
       RLE,
-      LZ77
+      LZ77,
+      RLEP
 };
 
 Func getCopyFunc();
